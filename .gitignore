@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Env
+.env
+
+# Workspace (user data)
+workspace/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
