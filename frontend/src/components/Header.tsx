@@ -1,3 +1,4 @@
+import { ChevronDown, Moon, SunMedium } from "lucide-react";
 import type { ModelInfo, ChatThread } from "../types";
 import { getModeConfig } from "../constants";
 
@@ -40,14 +41,9 @@ export default function Header({
           aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
           {theme === "dark" ? (
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <circle cx="8" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
+            <SunMedium size={15} strokeWidth={1.8} />
           ) : (
-            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <path d="M10.9 2.3a5.9 5.9 0 1 0 2.8 10.9A6.4 6.4 0 0 1 10.9 2.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <Moon size={15} strokeWidth={1.8} />
           )}
         </button>
 
@@ -66,15 +62,7 @@ export default function Header({
                 </option>
               ))}
             </select>
-            <svg
-              width="10"
-              height="10"
-              viewBox="0 0 10 10"
-              fill="none"
-              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
-            >
-              <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
+            <ChevronDown size={10} strokeWidth={1.8} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
           </div>
         ) : (
           <span className="text-xs text-[var(--danger)]">No models available</span>

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X } from "lucide-react";
 import type { SettingsSection } from "../types";
 import SettingsSubSidebar from "./SettingsSubSidebar";
 import GeneralSettings from "./settings/GeneralSettings";
@@ -76,14 +77,7 @@ export default function SettingsPage({
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition"
             title="Close settings"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M2 2l12 12M14 2L2 14"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-              />
-            </svg>
+            <X size={16} strokeWidth={1.8} />
           </button>
         </div>
 

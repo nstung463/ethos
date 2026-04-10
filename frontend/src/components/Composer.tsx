@@ -1,4 +1,5 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
+import { ArrowUp, Cloud, HardDrive, Paperclip, PenTool, Plus, Puzzle, Square } from "lucide-react";
 import type { ComposerMode, ModeConfig } from "../types";
 import { MODES } from "../constants";
 
@@ -102,9 +103,7 @@ export default function Composer({
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-faint)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] cursor-pointer"
               title="Add attachment or action"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 2v10M2 7h10" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
-              </svg>
+              <Plus size={14} strokeWidth={1.75} />
             </button>
 
             {menuOpen ? (
@@ -112,50 +111,23 @@ export default function Composer({
                 {[
                   {
                     label: "Google Drive",
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M5.33 2L2 6.67v6.66h4L10.33 8l-2.67-6z" fill="#4285F4" />
-                        <path d="M10.67 8L8 14.33h6V8h-3.33z" fill="#EA4335" />
-                        <path d="M10.67 2L8 8l2.67 6 3.33-6v-6z" fill="#FBBC04" />
-                      </svg>
-                    ),
+                    icon: <Cloud size={16} strokeWidth={1.8} />,
                   },
                   {
                     label: "OneDrive",
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M2 8C2 5.24 4.24 3 7 3c1.5 0 2.89.63 3.87 1.63C12.85 4.42 14 6.07 14 8c0 2.76-2.24 5-5 5H6c-2.21 0-4-1.79-4-4z" fill="#0078D4" />
-                      </svg>
-                    ),
+                    icon: <HardDrive size={16} strokeWidth={1.8} />,
                   },
                   {
                     label: "Figma",
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <circle cx="4" cy="4" r="2.5" fill="#F24E1E" />
-                        <circle cx="12" cy="4" r="2.5" fill="#A259FF" />
-                        <circle cx="12" cy="12" r="2.5" fill="#1ABCFE" />
-                        <circle cx="4" cy="12" r="2.5" fill="#0ACF83" />
-                        <circle cx="8" cy="8" r="2.5" fill="#FF61F6" />
-                      </svg>
-                    ),
+                    icon: <PenTool size={16} strokeWidth={1.8} />,
                   },
                   {
                     label: "Use Skills",
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 6C2.44772 6 2 6.44772 2 7V9C2 9.55228 2.44772 10 3 10H4V6H3ZM6 2C5.44772 2 5 2.44772 5 3V13C5 13.5523 5.44772 14 6 14H8V2H6ZM10 5C9.44772 5 9 5.44772 9 6V13C9 13.5523 9.44772 14 10 14H12V5H10ZM13 8C13 7.44772 13.4477 7 14 7V11C14 11.5523 13.4477 12 13 12H12V8H13Z" fill="currentColor" />
-                      </svg>
-                    ),
+                    icon: <Puzzle size={16} strokeWidth={1.8} />,
                   },
                   {
                     label: "Add from local files",
-                    icon: (
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M4 2C3.44772 2 3 2.44772 3 3V10C3 11.1046 3.89543 12 5 12H6V14C6 14.5523 6.44772 15 7 15H9C9.55228 15 10 14.5523 10 14V12H11C12.1046 12 13 11.1046 13 10V3C13 2.44772 12.5523 2 12 2H4Z" fill="currentColor" />
-                        <path d="M6 4C6.55228 4 7 4.44772 7 5C7 5.55228 6.55228 6 6 6C5.44772 6 5 5.55228 5 5C5 4.44772 5.44772 4 6 4Z" fill="currentColor" />
-                      </svg>
-                    ),
+                    icon: <Paperclip size={16} strokeWidth={1.8} />,
                   },
                 ].map((item) => (
                   <button
@@ -194,9 +166,7 @@ export default function Composer({
               style={{ background: "color-mix(in oklab, var(--danger) 12%, transparent)", borderColor: "color-mix(in oklab, var(--danger) 30%, transparent)" }}
               title="Stop generation"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
-                <rect x="3" y="3" width="8" height="8" rx="1.5" />
-              </svg>
+              <Square size={14} fill="currentColor" strokeWidth={0} />
             </button>
           ) : (
             <button
@@ -205,9 +175,7 @@ export default function Composer({
               className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--text-primary)] text-[var(--app-bg)] transition-all hover:opacity-90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-20"
               title="Send message"
             >
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <path d="M7 11V3M3 7l4-4 4 4" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ArrowUp size={14} strokeWidth={1.9} />
             </button>
           )}
         </div>
