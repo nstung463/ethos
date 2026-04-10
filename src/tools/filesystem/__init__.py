@@ -11,12 +11,16 @@ from src.tools.filesystem.edit_file import build_edit_file_tool
 from src.tools.filesystem.glob import build_glob_tool
 from src.tools.filesystem.grep import build_grep_tool
 from src.tools.filesystem.ls import build_ls_tool
+from src.tools.filesystem.notebook_edit import build_notebook_edit_tool
 from src.tools.filesystem.read_file import build_read_file_tool
 from src.tools.filesystem.write_file import build_write_file_tool
 
 
 def build_filesystem_tools(root_dir: str = "./workspace") -> list[StructuredTool]:
-    """Build all six filesystem tools sandboxed to root_dir.
+    """Build the six core filesystem tools sandboxed to root_dir.
+
+    Note: notebook_edit is exported separately via build_notebook_edit_tool
+    because it requires the optional nbformat dependency.
 
     Creates the workspace directory if it doesn't exist.
 
@@ -36,4 +40,4 @@ def build_filesystem_tools(root_dir: str = "./workspace") -> list[StructuredTool
     ]
 
 
-__all__ = ["build_filesystem_tools"]
+__all__ = ["build_filesystem_tools", "build_notebook_edit_tool"]

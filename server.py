@@ -30,13 +30,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from pydantic import BaseModel
+from src.logger import get_logger, setup_logging
 
 load_dotenv()
+setup_logging()
+logger = get_logger(__name__)
 
 # ── Build agent once at startup ────────────────────────────────────────────────
 from src.graph import create_ethos_agent
 
 _agent = create_ethos_agent()
+logger.info("Ethos API agent initialized")
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
 app = FastAPI(title="Ethos API", version="1.0.0")
@@ -143,6 +147,7 @@ async def _stream(messages: list[Message], model: str) -> AsyncIterator[str]:
     """
     lc_messages = _to_lc_messages(messages)
     config = {"configurable": {"thread_id": str(uuid.uuid4())}}
+    logger.info("Streaming chat request started (model=%s, messages=%d)", model, len(messages))
 
     async for event in _agent.astream_events(
         {"messages": lc_messages}, config=config, version="v2"
@@ -173,8 +178,10 @@ async def _stream(messages: list[Message], model: str) -> AsyncIterator[str]:
                 args_preview = repr(tool_input)[:120]
 
             status = f"Using tool `{tool_name}`({args_preview})\n"
+            logger.info("Tool started during stream (tool=%s)", tool_name)
             yield _sse({"reasoning_content": status}, model)
 
+    logger.info("Streaming chat request finished (model=%s)", model)
     yield _sse({}, model, finish_reason="stop")
     yield "data: [DONE]\n\n"
 
@@ -183,6 +190,7 @@ async def _stream(messages: list[Message], model: str) -> AsyncIterator[str]:
 
 @app.get("/v1/models")
 async def list_models():
+    logger.debug("List models endpoint called")
     return {
         "object": "list",
         "data": [{
@@ -196,6 +204,12 @@ async def list_models():
 
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatRequest):
+    logger.info(
+        "Chat completion request received (model=%s, stream=%s, messages=%d)",
+        request.model,
+        request.stream,
+        len(request.messages),
+    )
     if request.stream:
         return StreamingResponse(
             _stream(request.messages, request.model),
@@ -210,6 +224,7 @@ async def chat_completions(request: ChatRequest):
     result = await _agent.ainvoke({"messages": lc_messages}, config=config)
     last = result["messages"][-1]
     content = _extract_text(last.content)
+    logger.info("Chat completion request finished (model=%s, stream=%s)", request.model, request.stream)
 
     return {
         "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
@@ -227,4 +242,4 @@ async def chat_completions(request: ChatRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8080, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=False)

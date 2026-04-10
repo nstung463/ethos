@@ -1,26 +1,18 @@
-"""DaytonaSandbox — remote isolated container via Daytona SDK.
+"""Daytona sandbox backend for Ethos.
 
-Mirrors langchain-daytona DaytonaSandbox but without deepagents dependency.
-Wraps a `daytona.Sandbox` and implements execute() + upload/download.
-All high-level file operations (ls, read, write, edit, glob, grep) are
-inherited from BaseSandbox and run as Python scripts via execute().
-
-Usage:
-    from daytona import Daytona, CreateSandboxParams
-    from src.backends.daytona import DaytonaSandbox
-
-    sandbox = Daytona().create(CreateSandboxParams(language="python"))
-    backend = DaytonaSandbox(sandbox=sandbox)
-
-    agent = create_ethos_agent(backend=backend)
+Provides:
+- `DaytonaSandbox`: execute/upload/download primitives for BaseSandbox.
+- `create_daytona_sandbox(...)`: context manager to create/reuse Daytona
+  sandbox and yield a ready-to-use backend for `create_ethos_agent(...)`.
 """
 
 from __future__ import annotations
 
+import os
 import time
-from collections.abc import Callable
-from typing import cast
-from uuid import uuid4
+from collections.abc import Generator
+from contextlib import contextmanager
+from pathlib import Path
 
 from src.backends.protocol import (
     ExecuteResponse,
@@ -28,8 +20,9 @@ from src.backends.protocol import (
     FileUploadResponse,
 )
 from src.backends.sandbox import BaseSandbox
+from src.logger import get_logger
 
-SyncPollingInterval = float | Callable[[float], float]
+logger = get_logger(__name__)
 
 
 class DaytonaSandbox(BaseSandbox):
@@ -43,30 +36,15 @@ class DaytonaSandbox(BaseSandbox):
         *,
         sandbox: object,  # daytona.Sandbox — typed as object to avoid hard import
         timeout: int = 30 * 60,
-        sync_polling_interval: SyncPollingInterval = 0.25,
     ) -> None:
         """Wrap an existing Daytona sandbox.
 
         Args:
             sandbox: A `daytona.Sandbox` instance (already created).
             timeout: Default command timeout in seconds.
-            sync_polling_interval: Seconds between polling calls (or a callable
-                that receives elapsed seconds and returns the next delay).
         """
         self._sandbox = sandbox
         self._default_timeout = timeout
-
-        if callable(sync_polling_interval):
-            self._poll_interval: Callable[[float], float] = cast(
-                "Callable[[float], float]", sync_polling_interval
-            )
-        else:
-            interval = sync_polling_interval
-
-            def _fixed(_elapsed: float) -> float:
-                return interval
-
-            self._poll_interval = _fixed
 
     @property
     def id(self) -> str:
@@ -77,66 +55,17 @@ class DaytonaSandbox(BaseSandbox):
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
         """Execute a shell command inside the Daytona sandbox.
 
-        Uses Daytona's session-based execution with log polling for sync support.
+        Uses Daytona process exec API for synchronous command execution.
         """
         effective_timeout = timeout if timeout is not None else self._default_timeout
-        return self._execute_via_session(command, timeout=effective_timeout)
-
-    def _execute_via_session(self, command: str, *, timeout: int) -> ExecuteResponse:
+        logger.debug("Executing command in Daytona sandbox (sandbox_id=%s)", self.id)
         try:
-            from daytona import SessionExecuteRequest
-        except ImportError as e:
-            return ExecuteResponse(
-                output="Error: daytona package not installed. Run: pip install daytona",
-                exit_code=1,
-            )
+            result = self._sandbox.process.exec(command, timeout=effective_timeout)  # type: ignore[attr-defined]
+        except Exception as e:
+            logger.exception("Daytona exec failed (sandbox_id=%s)", self.id)
+            return ExecuteResponse(output=f"Daytona exec failed: {e}", exit_code=1, truncated=False)
 
-        session_id = str(uuid4())
-        self._sandbox.process.create_session(session_id)  # type: ignore[attr-defined]
-
-        try:
-            started_at = time.monotonic()
-            result = self._sandbox.process.execute_session_command(  # type: ignore[attr-defined]
-                session_id,
-                SessionExecuteRequest(command=command, run_async=True),
-                timeout=timeout,
-            )
-
-            while True:
-                if timeout != 0 and time.monotonic() - started_at >= timeout:
-                    return ExecuteResponse(
-                        output=f"Command timed out after {timeout}s",
-                        exit_code=124,
-                        truncated=False,
-                    )
-
-                cmd_result = self._sandbox.process.get_session_command(  # type: ignore[attr-defined]
-                    session_id, result.cmd_id
-                )
-                if cmd_result.exit_code is not None:
-                    break
-
-                elapsed = time.monotonic() - started_at
-                time.sleep(self._poll_interval(elapsed))
-
-            logs = self._sandbox.process.get_session_command_logs(  # type: ignore[attr-defined]
-                session_id, result.cmd_id
-            )
-        finally:
-            try:
-                self._sandbox.process.delete_session(session_id)  # type: ignore[attr-defined]
-            except Exception:
-                pass
-
-        output = logs.stdout or ""
-        if logs.stderr and logs.stderr.strip():
-            output += f"\n<stderr>{logs.stderr.strip()}</stderr>"
-
-        return ExecuteResponse(
-            output=output,
-            exit_code=cmd_result.exit_code,
-            truncated=False,
-        )
+        return ExecuteResponse(output=result.result or "", exit_code=result.exit_code, truncated=False)
 
     def upload_files(self, files: list[tuple[str, bytes]]) -> list[FileUploadResponse]:
         """Upload files into the Daytona sandbox."""
@@ -192,3 +121,90 @@ class DaytonaSandbox(BaseSandbox):
                     )
 
         return responses
+
+
+def _run_setup_script(backend: DaytonaSandbox, setup_script_path: str) -> None:
+    if not os.path.exists(setup_script_path):
+        logger.warning("Setup script not found: %s", setup_script_path)
+        return
+    with open(setup_script_path, encoding="utf-8") as f:
+        script = f.read()
+    logger.info("Running Daytona setup script: %s", setup_script_path)
+    backend.execute(script)
+
+
+@contextmanager
+def create_daytona_sandbox(
+    *,
+    conversation_id: str,
+    setup_script_path: str | None = None,
+    output_dir: Path | None = None,
+) -> Generator[DaytonaSandbox, None, None]:
+    """Create/reuse a Daytona sandbox and yield DaytonaSandbox backend."""
+    from daytona import CreateSandboxBaseParams, Daytona, DaytonaConfig
+    from daytona.common.errors import DaytonaError
+
+    api_key = os.environ.get("DAYTONA_API_KEY")
+    if not api_key:
+        raise ValueError("DAYTONA_API_KEY environment variable not set")
+
+    logger.info("Creating or reusing Daytona sandbox (conversation_id=%s)", conversation_id)
+    daytona = Daytona(DaytonaConfig(api_key=api_key))
+    sandbox_name = conversation_id
+
+    is_new = False
+    try:
+        sandbox = daytona.create(
+            params=CreateSandboxBaseParams(name=sandbox_name, auto_delete_interval=5)
+        )
+        is_new = True
+        logger.info("Created new Daytona sandbox: %s", sandbox_name)
+    except DaytonaError as e:
+        if "already exists" in str(e):
+            sandbox = daytona.get(sandbox_id_or_name=sandbox_name)
+            logger.info("Reusing existing Daytona sandbox: %s", sandbox_name)
+        else:
+            raise
+
+    for _ in range(90):
+        try:
+            ready = sandbox.process.exec("echo ready", timeout=5)
+            if ready.exit_code == 0:
+                break
+        except Exception:
+            pass
+        time.sleep(2)
+    else:
+        if is_new:
+            sandbox.delete()
+        raise RuntimeError("Daytona sandbox failed to start within 180 seconds")
+
+    backend = DaytonaSandbox(sandbox=sandbox)
+    logger.info("Daytona sandbox ready (sandbox_id=%s)", backend.id)
+    if is_new:
+        if setup_script_path is None:
+            project_root = Path(__file__).resolve().parents[3]
+            default_setup = project_root / "scripts" / "setup_daytona_sandbox.sh"
+            if default_setup.exists():
+                setup_script_path = str(default_setup)
+        if setup_script_path:
+            _run_setup_script(backend, setup_script_path)
+
+    try:
+        yield backend
+    finally:
+        if output_dir:
+            logger.info("Collecting output files to local dir: %s", output_dir)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            list_result = backend.execute(
+                "cd /tmp/OUTPUT_DIR && find . -type f 2>/dev/null | head -100"
+            )
+            if list_result.exit_code == 0 and list_result.output.strip():
+                rel_paths = [p.strip() for p in list_result.output.splitlines() if p.strip()]
+                abs_paths = [f"/tmp/OUTPUT_DIR/{p.lstrip('./')}" for p in rel_paths]
+                for resp in backend.download_files(abs_paths):
+                    if resp.content is not None:
+                        (output_dir / Path(resp.path).name).write_bytes(resp.content)
+                        logger.debug("Downloaded output file: %s", resp.path)
+        logger.info("Deleting Daytona sandbox: %s", sandbox_name)
+        sandbox.delete()

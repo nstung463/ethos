@@ -12,6 +12,9 @@ import os
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
+from src.logger import get_logger
+
+logger = get_logger(__name__)
 
 PROVIDER_ALIASES = {
     "gemini": "google_genai",
@@ -76,6 +79,7 @@ def get_model() -> BaseChatModel:
     provider = os.getenv("ETHOS_PROVIDER", "anthropic").strip().lower()
     provider = PROVIDER_ALIASES.get(provider, provider)
     model = os.getenv("ETHOS_MODEL", "claude-sonnet-4-6")
+    logger.info("Resolving model configuration (provider=%s, model=%s)", provider, model)
     if provider in OPENAI_COMPATIBLE_PROVIDERS:
         conf = OPENAI_COMPATIBLE_PROVIDERS[provider]
         base_url = os.getenv(conf["base_url_env"], conf["base_url"])
@@ -86,6 +90,7 @@ def get_model() -> BaseChatModel:
         }
         if api_key:
             kwargs["api_key"] = api_key
+        logger.debug("Using OpenAI-compatible provider base_url=%s", base_url)
         return init_chat_model(f"openai:{model}", **kwargs)
 
     return init_chat_model(f"{provider}:{model}", temperature=0.0)
