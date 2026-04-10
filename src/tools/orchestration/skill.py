@@ -23,6 +23,10 @@ def build_skill_tool(skill_runner: Callable[[str, str], str]) -> StructuredTool:
 
     return StructuredTool.from_function(
         name="skill", func=_invoke,
-        description="Invoke a named skill. Skills provide specialized workflows and guidance.",
+        description=(
+            "Invoke a named skill. Skills provide specialized workflows and guidance. "
+            "Pass the skill name and any arguments. "
+            "Use tool_search to discover available skills."
+        ),
         args_schema=SkillInput,
     )

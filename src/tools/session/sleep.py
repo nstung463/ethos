@@ -19,6 +19,9 @@ def _sleep(duration_ms: int) -> str:
 sleep_tool = StructuredTool.from_function(
     name="sleep",
     func=_sleep,
-    description="Pause execution for the specified number of milliseconds.",
+    description=(
+        "Pause execution for the specified number of milliseconds. "
+        "Use to wait for external processes or rate-limit retries."
+    ),
     args_schema=SleepInput,
 )

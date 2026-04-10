@@ -17,7 +17,10 @@ from src.tools.filesystem.write_file import build_write_file_tool
 
 
 def build_filesystem_tools(root_dir: str = "./workspace") -> list[StructuredTool]:
-    """Build all six filesystem tools sandboxed to root_dir.
+    """Build the six core filesystem tools sandboxed to root_dir.
+
+    Note: notebook_edit is exported separately via build_notebook_edit_tool
+    because it requires the optional nbformat dependency.
 
     Creates the workspace directory if it doesn't exist.
 
