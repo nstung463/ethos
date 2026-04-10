@@ -124,6 +124,10 @@ class BaseSandbox(ABC):
     @abstractmethod
     def id(self) -> str: ...
 
+    @property
+    @abstractmethod
+    def supported_shells(self) -> set[str]: ...
+
     @abstractmethod
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse: ...
 

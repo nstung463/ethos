@@ -1,31 +1,31 @@
-"""think tool — explicit reasoning scratchpad before acting."""
+"""think tool - strategic reflection scratchpad for research workflows."""
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 
 class ThinkInput(BaseModel):
-    thought: str = Field(
+    reflection: str = Field(
         description=(
-            "Your reasoning, analysis, or step-by-step thinking. "
-            "Use this to reason through complex problems, evaluate options, "
-            "or plan an approach before calling other tools."
+            "Your detailed reflection on progress, findings, gaps, and next steps. "
+            "Use this after gathering information to analyze what you learned, "
+            "what is still missing, and whether to continue or conclude."
         )
     )
 
 
-def _think(thought: str) -> str:
-    """Return the thought unchanged — this is a reasoning scratchpad."""
-    return thought
+def _think(reflection: str) -> str:
+    """Record a strategic reflection for deliberate decision-making."""
+    return f"Reflection recorded: {reflection}"
 
 
 think_tool = StructuredTool.from_function(
     name="think",
     func=_think,
     description=(
-        "Reason through a problem before acting. "
-        "Write out your analysis or step-by-step logic. "
-        "This tool takes no side effects — it is a scratchpad for structured thinking."
+        "Tool for strategic reflection on research progress and decision-making. "
+        "Use after searches or document reads to assess findings, identify gaps, "
+        "evaluate evidence quality, and decide the next step."
     ),
     args_schema=ThinkInput,
 )

@@ -6,6 +6,7 @@ the sandbox boundary; commands run in a subprocess with cwd=root.
 
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 from uuid import uuid4
@@ -30,6 +31,10 @@ class LocalSandbox(BaseSandbox):
     @property
     def id(self) -> str:
         return self._id
+
+    @property
+    def supported_shells(self) -> set[str]:
+        return {"powershell"} if os.name == "nt" else {"bash"}
 
     @property
     def root(self) -> Path:

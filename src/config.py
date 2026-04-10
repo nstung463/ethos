@@ -6,12 +6,19 @@ Supports:
   gemini -> google_genai, amazon -> bedrock, azure -> azure_openai
 - Popular OpenAI-compatible providers via aliases:
   openrouter, deepseek, together, groq, xai, fireworks, perplexity
+- Multiple logical models for Open WebUI: set ``ETHOS_MODEL_REGISTRY`` (JSON array).
 """
 
+from __future__ import annotations
+
+import json
 import os
+from dataclasses import dataclass
+from typing import Any
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
+
 from src.logger import get_logger
 
 logger = get_logger(__name__)
@@ -63,23 +70,30 @@ OPENAI_COMPATIBLE_PROVIDERS = {
 }
 
 
-def get_model() -> BaseChatModel:
-    """Resolve the LLM from environment variables.
+@dataclass(frozen=True)
+class ModelSpec:
+    """One Open WebUI /v1/models entry backed by a concrete provider + model id."""
 
-    Uses ETHOS_PROVIDER (default: anthropic) and ETHOS_MODEL (default: claude-sonnet-4-6).
-    Supports any provider/model combo accepted by init_chat_model, e.g.:
-      - anthropic:claude-sonnet-4-6
-      - openai:gpt-4o
-      - gemini:gemini-2.5-pro (alias -> google_genai)
-      - amazon:anthropic.claude-3-5-sonnet-20240620-v1:0 (alias -> bedrock)
-      - azure:gpt-4o (alias -> azure_openai)
-      - openrouter:openai/gpt-4o-mini
-      - deepseek:deepseek-chat
-    """
-    provider = os.getenv("ETHOS_PROVIDER", "anthropic").strip().lower()
+    id: str
+    provider: str
+    model: str
+
+
+@dataclass(frozen=True)
+class MCPServerSpec:
+    """One MCP server configuration exposed to Ethos tools."""
+
+    name: str
+    connection: dict[str, Any]
+    auth_url: str | None = None
+
+
+def build_chat_model(provider: str, model_name: str) -> BaseChatModel:
+    """Build a chat model from provider id and model name (init_chat_model style)."""
+    provider = provider.strip().lower()
     provider = PROVIDER_ALIASES.get(provider, provider)
-    model = os.getenv("ETHOS_MODEL", "claude-sonnet-4-6")
-    logger.info("Resolving model configuration (provider=%s, model=%s)", provider, model)
+    logger.info("Building chat model (provider=%s, model=%s)", provider, model_name)
+
     if provider in OPENAI_COMPATIBLE_PROVIDERS:
         conf = OPENAI_COMPATIBLE_PROVIDERS[provider]
         base_url = os.getenv(conf["base_url_env"], conf["base_url"])
@@ -90,12 +104,140 @@ def get_model() -> BaseChatModel:
         }
         if api_key:
             kwargs["api_key"] = api_key
-        logger.debug("Using OpenAI-compatible provider base_url=%s", base_url)
-        return init_chat_model(f"openai:{model}", **kwargs)
+        return init_chat_model(f"openai:{model_name}", **kwargs)
 
-    return init_chat_model(f"{provider}:{model}", temperature=0.0)
+    if provider == "azure_openai":
+        api_version = (
+            os.getenv("AZURE_OPENAI_API_VERSION")
+            or os.getenv("OPENAI_API_VERSION")
+            or "2024-12-01-preview"
+        )
+        return init_chat_model(
+            f"{provider}:{model_name}",
+            temperature=0.0,
+            api_version=api_version,
+        )
+
+    return init_chat_model(f"{provider}:{model_name}", temperature=0.0)
+
+
+def get_model_registry() -> list[ModelSpec]:
+    """Models exposed at GET /v1/models (e.g. Open WebUI dropdown).
+
+    If ``ETHOS_MODEL_REGISTRY`` is unset or empty, uses a single model from
+    ``ETHOS_PROVIDER`` + ``ETHOS_MODEL`` with id ``ethos`` (defaults: openrouter +
+    ``openai/gpt-4o-mini``).
+
+    ``ETHOS_MODEL_REGISTRY`` format (JSON array)::
+
+        [
+          {"id": "ethos", "provider": "openrouter", "model": "openai/gpt-4o-mini"},
+          {"id": "ethos-azure", "provider": "azure", "model": "gpt-4o"}
+        ]
+    """
+    raw = os.getenv("ETHOS_MODEL_REGISTRY", "").strip()
+    if not raw:
+        return [
+            ModelSpec(
+                id="ethos",
+                provider=os.getenv("ETHOS_PROVIDER", "openrouter").strip().lower(),
+                model=os.getenv("ETHOS_MODEL", "openai/gpt-4o-mini"),
+            )
+        ]
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"ETHOS_MODEL_REGISTRY must be valid JSON: {e}") from e
+    if not isinstance(data, list) or len(data) == 0:
+        raise ValueError("ETHOS_MODEL_REGISTRY must be a non-empty JSON array")
+
+    out: list[ModelSpec] = []
+    seen: set[str] = set()
+    for i, item in enumerate(data):
+        if not isinstance(item, dict):
+            raise ValueError(f"ETHOS_MODEL_REGISTRY[{i}] must be an object")
+        mid = str(item.get("id", "")).strip()
+        prov = str(item.get("provider", "")).strip().lower()
+        mname = str(item.get("model", "")).strip()
+        if not mid or not prov or not mname:
+            raise ValueError(
+                f"ETHOS_MODEL_REGISTRY[{i}] requires non-empty id, provider, and model"
+            )
+        if mid in seen:
+            raise ValueError(f"Duplicate model id in ETHOS_MODEL_REGISTRY: {mid}")
+        seen.add(mid)
+        out.append(ModelSpec(id=mid, provider=prov, model=mname))
+    return out
+
+
+def get_model() -> BaseChatModel:
+    """Resolve the default LLM from ETHOS_PROVIDER / ETHOS_MODEL (single-model mode)."""
+    specs = get_model_registry()
+    # When registry is single default from env, use it; else first entry for CLI tools.
+    spec = specs[0]
+    return build_chat_model(spec.provider, spec.model)
 
 
 def get_workspace() -> str:
     """Return the workspace root directory."""
     return os.getenv("ETHOS_WORKSPACE", "./workspace")
+
+
+def get_mcp_servers() -> list[MCPServerSpec]:
+    """Return MCP server configurations from ETHOS_MCP_SERVERS.
+
+    Supported formats:
+
+    1. Object map:
+        {
+          "docs": {"transport": "streamable_http", "url": "https://example/mcp", "auth_url": "https://example/login"}
+        }
+
+    2. Array:
+        [
+          {"name": "docs", "transport": "streamable_http", "url": "https://example/mcp"}
+        ]
+    """
+    raw = os.getenv("ETHOS_MCP_SERVERS", "").strip()
+    if not raw:
+        return []
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValueError(f"ETHOS_MCP_SERVERS must be valid JSON: {e}") from e
+
+    items: list[tuple[str, dict[str, Any]]]
+    if isinstance(data, dict):
+        items = []
+        for name, config in data.items():
+            if not isinstance(config, dict):
+                raise ValueError(f"ETHOS_MCP_SERVERS['{name}'] must be an object")
+            items.append((str(name), dict(config)))
+    elif isinstance(data, list):
+        items = []
+        for idx, item in enumerate(data):
+            if not isinstance(item, dict):
+                raise ValueError(f"ETHOS_MCP_SERVERS[{idx}] must be an object")
+            name = str(item.get("name", "")).strip()
+            if not name:
+                raise ValueError(f"ETHOS_MCP_SERVERS[{idx}] requires non-empty 'name'")
+            config = dict(item)
+            config.pop("name", None)
+            items.append((name, config))
+    else:
+        raise ValueError("ETHOS_MCP_SERVERS must be a JSON object or array")
+
+    servers: list[MCPServerSpec] = []
+    seen: set[str] = set()
+    for name, config in items:
+        if name in seen:
+            raise ValueError(f"Duplicate MCP server name: {name}")
+        seen.add(name)
+        auth_url = config.pop("auth_url", None)
+        if auth_url is not None and not isinstance(auth_url, str):
+            raise ValueError(f"auth_url for MCP server '{name}' must be a string")
+        transport = str(config.get("transport", "")).strip()
+        if not transport:
+            raise ValueError(f"MCP server '{name}' requires 'transport'")
+        servers.append(MCPServerSpec(name=name, connection=config, auth_url=auth_url))
+    return servers

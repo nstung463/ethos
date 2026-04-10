@@ -1,0 +1,72 @@
+version: "3.8"
+
+services:
+  # Open Terminal Service (execution backend)
+  open-terminal:
+    image: ghcr.io/open-webui/open-terminal:latest
+    container_name: ethos-open-terminal
+    ports:
+      - "8000:8000"
+    volumes:
+      - open-terminal-data:/home/user
+    environment:
+      OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY:-secret-change-me}
+      OPEN_TERMINAL_MULTI_USER: "false"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Ethos API Server (LangGraph + FastAPI)
+  ethos-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ethos-api
+    ports:
+      - "8080:8080"
+    environment:
+      OPEN_TERMINAL_URL: http://open-terminal:8000
+      OPEN_TERMINAL_API_KEY: ${OPEN_TERMINAL_API_KEY:-secret-change-me}
+      ETHOS_PROVIDER: ${ETHOS_PROVIDER:-openrouter}
+      ETHOS_MODEL: ${ETHOS_MODEL:-openai/gpt-4o-mini}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      open-terminal:
+        condition: service_healthy
+    volumes:
+      - ./workspace:/app/workspace
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/v1/models"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # Ethos Frontend
+  ethos-frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ethos-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080
+    depends_on:
+      - ethos-api
+    restart: unless-stopped
+
+volumes:
+  open-terminal-data:
+    driver: local
+
+networks:
+  default:
+    name: ethos-network
+    driver: bridge

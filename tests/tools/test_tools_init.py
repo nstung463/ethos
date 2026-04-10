@@ -10,6 +10,8 @@ def test_all_tools_importable() -> None:
         build_filesystem_tools, build_notebook_edit_tool,
         # Web
         tavily_search, think_tool, web_fetch_tool,
+        # Shell
+        build_bash_tool, build_powershell_tool,
         # Todo
         build_todo_write_tool,
         # Task
@@ -19,6 +21,9 @@ def test_all_tools_importable() -> None:
         build_ask_user_tool, build_send_user_message_tool, structured_output_tool,
         # Session
         sleep_tool, build_config_tool, build_tool_search_tool,
+        # MCP
+        MCPRuntime, build_mcp_tool, build_list_mcp_resources_tool,
+        build_read_mcp_resource_tool, build_auth_tools, build_mcp_tools,
         # Orchestration
         build_skill_tool, build_send_message_tool, build_team_create_tool, build_team_delete_tool,
     )

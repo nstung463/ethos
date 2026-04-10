@@ -3,11 +3,11 @@
 from src.tools.web.think import think_tool
 
 
-def test_think_returns_thought_unchanged() -> None:
-    result = think_tool.invoke({"thought": "my reasoning here"})
-    assert result == "my reasoning here"
+def test_think_records_reflection() -> None:
+    result = think_tool.invoke({"reflection": "my reasoning here"})
+    assert result == "Reflection recorded: my reasoning here"
 
 
-def test_think_empty_thought() -> None:
-    result = think_tool.invoke({"thought": ""})
-    assert result == ""
+def test_think_empty_reflection() -> None:
+    result = think_tool.invoke({"reflection": ""})
+    assert result == "Reflection recorded: "

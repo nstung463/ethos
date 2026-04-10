@@ -1,0 +1,85 @@
+import type { ModelInfo, ChatThread } from "../types";
+import { getModeConfig } from "../constants";
+
+export default function Header({
+  thread,
+  models,
+  loadingModels,
+  onModelChange,
+  theme,
+  onToggleTheme,
+}: {
+  thread: ChatThread | null;
+  models: ModelInfo[];
+  loadingModels: boolean;
+  onModelChange: (modelId: string) => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
+}) {
+  const activeModel = thread?.model || models[0]?.id || "";
+  const mode = thread?.mode ?? "build";
+  const modeConfig = getModeConfig(mode);
+
+  return (
+    <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--app-bg)] px-3 py-2.5 sm:px-4 sm:py-3">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <h1 className="truncate text-[clamp(0.85rem,1.8vw,1rem)] font-medium text-[var(--text-primary)]">
+          {thread?.title || "New conversation"}
+        </h1>
+        <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--border-subtle)] bg-[var(--surface-badge)] px-1.5 py-0.5 text-[9px] text-[var(--text-soft)] sm:px-2 sm:text-xs">
+          {modeConfig.label}
+        </span>
+      </div>
+
+      <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+        >
+          {theme === "dark" ? (
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <circle cx="8" cy="8" r="3.25" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+          ) : (
+            <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <path d="M10.9 2.3a5.9 5.9 0 1 0 2.8 10.9A6.4 6.4 0 0 1 10.9 2.3Z" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
+
+        {loadingModels ? (
+          <div className="px-2 text-[10px] text-[var(--text-faint)] sm:text-xs">Loading...</div>
+        ) : models.length > 0 ? (
+          <div className="relative min-w-[100px] sm:min-w-[140px]">
+            <select
+              value={activeModel}
+              onChange={(e) => onModelChange(e.target.value)}
+              className="w-full appearance-none rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] py-1 pl-2.5 pr-6 text-[10px] text-[var(--text-secondary)] outline-none transition-all hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] cursor-pointer sm:py-1.5 sm:pl-3 sm:text-xs"
+            >
+              {models.map((m) => (
+                <option key={m.id} value={m.id} className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">
+                  {m.id}
+                </option>
+              ))}
+            </select>
+            <svg
+              width="10"
+              height="10"
+              viewBox="0 0 10 10"
+              fill="none"
+              className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]"
+            >
+              <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+        ) : (
+          <span className="text-xs text-[var(--danger)]">No models available</span>
+        )}
+      </div>
+    </div>
+  );
+}

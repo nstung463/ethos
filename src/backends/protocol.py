@@ -99,6 +99,12 @@ class SandboxProtocol(Protocol):
         """Unique identifier for this sandbox instance."""
         ...
 
+    @property
+    @abstractmethod
+    def supported_shells(self) -> set[str]:
+        """Shell tool names supported by this backend."""
+        ...
+
     @abstractmethod
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
         """Run a shell command inside the sandbox."""

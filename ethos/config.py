@@ -88,6 +88,19 @@ def get_model() -> BaseChatModel:
             kwargs["api_key"] = api_key
         return init_chat_model(f"openai:{model}", **kwargs)
 
+    # Azure: LangChain reads OPENAI_API_VERSION, not AZURE_OPENAI_API_VERSION — honor both.
+    if provider == "azure_openai":
+        api_version = (
+            os.getenv("AZURE_OPENAI_API_VERSION")
+            or os.getenv("OPENAI_API_VERSION")
+            or "2024-12-01-preview"
+        )
+        return init_chat_model(
+            f"{provider}:{model}",
+            temperature=0.0,
+            api_version=api_version,
+        )
+
     return init_chat_model(f"{provider}:{model}", temperature=0.0)
 
 

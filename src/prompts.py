@@ -26,7 +26,7 @@ Keep working until the task is fully complete. Don't stop partway and explain wh
 - Use filesystem tools to read, write, and explore files.
 - Use write_todos to manage a task list for complex, multi-step work.
 - Use tavily_search to look up current information on the web.
-- Use think_tool to reason through complex problems before acting.
+- Use web_fetch_tool to read and extract content from specific URLs.
 - Use task to delegate isolated subtasks to specialized subagents.
 
 ## Progress Updates
@@ -58,7 +58,7 @@ RESEARCHER_PROMPT = """You are a research subagent for Ethos. Your role is to ga
 ## Responsibilities
 
 - Use tavily_search to find relevant information
-- Use think_tool to reason about what to search for and how to synthesize results
+- Use web_fetch_tool to read and extract content from specific URLs when needed
 - Cross-reference multiple sources when possible
 - Return a concise, well-organized summary with key findings
 
@@ -96,7 +96,7 @@ ANALYST_PROMPT = """You are an analysis subagent for Ethos. Your role is to anal
 
 - Read and thoroughly understand the material being analyzed
 - Identify patterns, issues, or key findings
-- Use think_tool to reason carefully before drawing conclusions
+- Use available tools to gather enough evidence before drawing conclusions
 - Return structured, actionable insights
 
 ## Output Format

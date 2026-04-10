@@ -65,7 +65,7 @@ class MemoryStateUpdate(TypedDict):
 class MemoryMiddleware(AgentMiddleware[MemoryState, ContextT, ResponseT]):
     """Loads AGENTS.md once per session and injects it into the system prompt.
 
-    Placement: put this after TodosMiddleware and SkillsMiddleware in the stack,
+    Placement: put this after SkillsMiddleware in the stack,
     so memory appears last in the system prompt (closest to the model call).
     """
 

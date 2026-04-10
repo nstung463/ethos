@@ -50,6 +50,10 @@ class DaytonaSandbox(BaseSandbox):
     def id(self) -> str:
         return str(self._sandbox.id)  # type: ignore[attr-defined]
 
+    @property
+    def supported_shells(self) -> set[str]:
+        return {"bash"}
+
     # ── Core primitives ────────────────────────────────────────────────────────
 
     def execute(self, command: str, *, timeout: int | None = None) -> ExecuteResponse:
