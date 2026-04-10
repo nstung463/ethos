@@ -12,16 +12,21 @@ Or as a LangGraph deployment:
 import argparse
 import os
 import uuid
+from contextlib import nullcontext
 
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage
+from src.logger import get_logger, setup_logging
 
 load_dotenv()
+setup_logging()
+logger = get_logger(__name__)
 
 
 def _build_agent(mode: str):
     """Build the agent in the requested mode."""
     from src.graph import create_ethos_agent
+    logger.info("Building agent in mode=%s", mode)
 
     if mode == "daytona":
         try:
@@ -59,35 +64,50 @@ def main() -> None:
     args = parser.parse_args()
 
     mode = "daytona" if args.daytona else ("sandbox" if args.sandbox else "local")
-    agent = _build_agent(mode)
+    logger.info("Starting Ethos CLI with mode=%s", mode)
+    sandbox_ctx = nullcontext()
+    if mode == "daytona":
+        from src.backends.daytona import create_daytona_sandbox
 
-    print(f"Ethos AI Agent [{mode} mode] — type 'exit' to quit\n")
-    thread_id = str(uuid.uuid4())
-    config = {"configurable": {"thread_id": thread_id}}
+        sandbox_ctx = create_daytona_sandbox(conversation_id=f"ethos-{uuid.uuid4().hex[:8]}")
 
-    while True:
-        try:
-            user_input = input("You: ").strip()
-        except (EOFError, KeyboardInterrupt):
-            print("\nGoodbye.")
-            break
+    with sandbox_ctx as backend:
+        if mode == "daytona":
+            from src.graph import create_ethos_agent
 
-        if not user_input or user_input.lower() in ("exit", "quit"):
-            print("Goodbye.")
-            break
+            agent = create_ethos_agent(backend=backend)
+            logger.info("Daytona backend ready (sandbox_id=%s)", backend.id)
+        else:
+            agent = _build_agent(mode)
 
-        result = agent.invoke(
-            {"messages": [HumanMessage(content=user_input)]},
-            config=config,
-        )
+        print(f"Ethos AI Agent [{mode} mode] — type 'exit' to quit\n")
+        thread_id = str(uuid.uuid4())
+        config = {"configurable": {"thread_id": thread_id}}
 
-        last = result["messages"][-1]
-        content = getattr(last, "content", "")
-        if isinstance(content, list):
-            content = "".join(
-                b.get("text", "") if isinstance(b, dict) else str(b) for b in content
+        while True:
+            try:
+                user_input = input("You: ").strip()
+            except (EOFError, KeyboardInterrupt):
+                print("\nGoodbye.")
+                break
+
+            if not user_input or user_input.lower() in ("exit", "quit"):
+                print("Goodbye.")
+                break
+
+            result = agent.invoke(
+                {"messages": [HumanMessage(content=user_input)]},
+                config=config,
             )
-        print(f"\nEthos: {content}\n")
+            logger.debug("Agent invocation completed (thread_id=%s)", thread_id)
+
+            last = result["messages"][-1]
+            content = getattr(last, "content", "")
+            if isinstance(content, list):
+                content = "".join(
+                    b.get("text", "") if isinstance(b, dict) else str(b) for b in content
+                )
+            print(f"\nEthos: {content}\n")
 
 
 # Graph exported for langgraph dev / LangGraph Studio

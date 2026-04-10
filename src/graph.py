@@ -27,10 +27,13 @@ from langgraph.checkpoint.memory import MemorySaver
 from src.backends.sandbox import BaseSandbox
 from src.config import get_model, get_workspace
 from src.middleware import MemoryMiddleware, SkillsMiddleware, TodosMiddleware
+from src.logger import get_logger
 from src.prompts import BASE_SYSTEM_PROMPT
 from src.subagents import DEFAULT_SUBAGENTS, build_task_tool
 from src.tools.filesystem import build_filesystem_tools
 from src.tools.web import tavily_search, think_tool
+
+logger = get_logger(__name__)
 
 
 def create_ethos_agent(
@@ -53,6 +56,7 @@ def create_ethos_agent(
         root_dir = get_workspace()
 
     model = get_model()
+    logger.info("Creating Ethos agent (backend=%s, workspace=%s)", "sandbox" if backend else "local", root_dir)
 
     # ── Tools ──────────────────────────────────────────────────────────────────
     if backend is not None:
@@ -74,6 +78,7 @@ def create_ethos_agent(
         base_tools=fs_tools + web_tools,
     )
     all_tools = fs_tools + extra_tools + web_tools + [task_tool]
+    logger.debug("Agent tools prepared (count=%d)", len(all_tools))
 
     # ── Middleware stack ───────────────────────────────────────────────────────
     middleware = [
