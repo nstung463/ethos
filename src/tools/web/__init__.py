@@ -1,6 +1,7 @@
-"""Web tools — tavily_search and think."""
+"""Web tools: search, fetch, think."""
 
+from src.tools.web.fetch import web_fetch_tool
 from src.tools.web.search import tavily_search
 from src.tools.web.think import think_tool
 
-__all__ = ["tavily_search", "think_tool"]
+__all__ = ["tavily_search", "think_tool", "web_fetch_tool"]
