@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, Eye, EyeOff } from "lucide-react";
 
 export default function ApiKeysSettings() {
   const [apiKeys, setApiKeys] = useState({
@@ -54,14 +55,9 @@ export default function ApiKeysSettings() {
           title={showKeys[key] ? "Hide" : "Show"}
         >
           {showKeys[key] ? (
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M1 8c1.5-2.5 4-4 7-4s5.5 1.5 7 4c-1.5 2.5-4 4-7 4s-5.5-1.5-7-4z" fill="currentColor" opacity="0.5" />
-              <circle cx="8" cy="8" r="2" fill="currentColor" />
-            </svg>
+            <EyeOff size={16} strokeWidth={1.8} />
           ) : (
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <path d="M3 3l10 10M13 8c-1.5-2.5-4-4-7-4s-5.5 1.5-7 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <Eye size={16} strokeWidth={1.8} />
           )}
         </button>
       </div>
@@ -71,12 +67,12 @@ export default function ApiKeysSettings() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">API Keys</h1>
-        <p className="text-sm text-[var(--text-soft)] mb-6">
+        <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">API Keys</h1>
+        <p className="mb-6 text-sm text-[var(--text-soft)]">
           Store your API keys securely. Keys are encrypted and never sent to external services.
         </p>
 
-        <div className="space-y-6 mb-8">
+        <div className="mb-8 space-y-6">
           {renderKeyInput(
             "OpenRouter API Key",
             "openrouter",
@@ -98,12 +94,15 @@ export default function ApiKeysSettings() {
           <button
             type="button"
             onClick={handleSave}
-            className="px-4 py-2 rounded-lg bg-[var(--accent)] text-white font-medium hover:opacity-90 transition"
+            className="rounded-lg bg-[var(--accent)] px-4 py-2 font-medium text-white transition hover:opacity-90"
           >
             Save Keys
           </button>
           {saved && (
-            <span className="text-sm text-[var(--success)]">✓ Saved successfully</span>
+            <span className="inline-flex items-center gap-1.5 text-sm text-[var(--success)]">
+              <Check size={14} strokeWidth={2} />
+              Saved successfully
+            </span>
           )}
         </div>
       </div>
