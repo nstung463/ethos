@@ -15,6 +15,11 @@ workspace/
 
 # Logs
 *.log
+logs/
+
+# Jupyter
+*.ipynb
+.ipynb_checkpoints/
 
 # Frontend
 frontend/node_modules/

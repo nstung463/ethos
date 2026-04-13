@@ -1,23 +1,25 @@
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
 WORKDIR /app
 
-# Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git curl \
+    build-essential \
+    git \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project
-COPY . .
+COPY pyproject.toml ./
+COPY src ./src
+COPY main.py ethos.py ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -e ".[open-terminal]"
+RUN pip install --upgrade pip && pip install -e ".[open-terminal,daytona]"
 
-# Create workspace and logs directories
-RUN mkdir -p workspace logs
+RUN mkdir -p /app/workspace /app/logs
 
-# Expose API port
 EXPOSE 8080
 
-# Run Ethos API server
 CMD ["python", "main.py"]

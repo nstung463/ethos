@@ -1,9 +1,18 @@
 import type { Message } from "../types";
+import FollowUps from "./FollowUps";
 import MessageContent from "./MessageContent";
 import ThinkingPanel from "./ThinkingPanel";
 import TypingIndicator from "./TypingIndicator";
 
-export default function MessageBubble({ message }: { message: Message }) {
+export default function MessageBubble({
+  message,
+  isLastMessage,
+  onFollowUpClick,
+}: {
+  message: Message;
+  isLastMessage: boolean;
+  onFollowUpClick: (prompt: string) => void;
+}) {
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
 
@@ -51,6 +60,10 @@ export default function MessageBubble({ message }: { message: Message }) {
           <div className="mt-2 rounded-lg border px-3 py-2 text-xs text-[var(--danger)]" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)" }}>
             {message.error}
           </div>
+        ) : null}
+
+        {isLastMessage && message.status === "done" && (message.followUps?.length ?? 0) > 0 ? (
+          <FollowUps followUps={message.followUps ?? []} onClick={onFollowUpClick} />
         ) : null}
       </div>
     </div>

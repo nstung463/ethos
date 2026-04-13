@@ -22,7 +22,10 @@ class ChatRequest(BaseModel):
     model: str = Field(default_factory=_default_openai_model_id)
     messages: list[Message]
     stream: bool = False
+    session_id: str | None = None
+    chat_id: str | None = None
     file_ids: list[str] = Field(default_factory=list)
+    files: list[dict[str, Any]] = Field(default_factory=list)
     metadata: dict[str, Any] | None = None
 
     model_config = {"extra": "allow"}  # ignore unknown OpenWebUI fields

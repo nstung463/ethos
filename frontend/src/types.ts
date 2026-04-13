@@ -4,6 +4,19 @@ export type ModelInfo = {
   owned_by?: string;
 };
 
+export type UserApiKeys = {
+  openrouter: string;
+  anthropic: string;
+  openai: string;
+};
+
+export type Attachment = {
+  id: string;
+  filename: string;
+  contentType?: string;
+  size?: number;
+};
+
 export type Role = "user" | "assistant" | "system";
 export type ComposerMode = "build" | "review" | "explain";
 
@@ -13,6 +26,7 @@ export type Message = {
   content: string;
   reasoning?: string;
   toolEvents?: string[];
+  followUps?: string[];
   createdAt: string;
   status?: "streaming" | "done" | "error";
   error?: string;
@@ -25,6 +39,7 @@ export type ChatThread = {
   model: string;
   mode: ComposerMode;
   messages: Message[];
+  attachments: Attachment[];
   updatedAt: string;
 };
 

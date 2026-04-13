@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Ethos AI">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0f"/>
+      <stop offset="100%" stop-color="#0d1117"/>
+    </linearGradient>
+    <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="50%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#00f0ff"/>
+    </linearGradient>
+    <linearGradient id="core" x1="30%" y1="0%" x2="70%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="orbL" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#22d3ee"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="orbR" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#00f0ff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#00f0ff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+    <filter id="blurSm" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+
+  <!-- Ambient glow -->
+  <circle cx="256" cy="256" r="180" fill="url(#glow)" filter="url(#blur)"/>
+
+  <!-- Outer orbit ring -->
+  <circle cx="256" cy="256" r="148" fill="none" stroke="url(#ring)" stroke-width="2.5" opacity="0.3"/>
+
+  <!-- Inner orbit ring -->
+  <circle cx="256" cy="256" r="100" fill="none" stroke="url(#ring)" stroke-width="1.5" opacity="0.15"/>
+
+  <!-- Neural arc paths -->
+  <path d="M140 256 Q196 180 256 180 Q316 180 372 256" fill="none" stroke="#00f0ff" stroke-width="1.8" opacity="0.2" stroke-linecap="round"/>
+  <path d="M140 256 Q196 332 256 332 Q316 332 372 256" fill="none" stroke="#7c3aed" stroke-width="1.8" opacity="0.2" stroke-linecap="round"/>
+
+  <!-- Connection lines to orbs -->
+  <line x1="190" y1="210" x2="230" y2="240" stroke="#22d3ee" stroke-width="1.5" opacity="0.35"/>
+  <line x1="322" y1="210" x2="282" y2="240" stroke="#a78bfa" stroke-width="1.5" opacity="0.35"/>
+  <line x1="190" y1="302" x2="230" y2="272" stroke="#22d3ee" stroke-width="1.5" opacity="0.25"/>
+  <line x1="322" y1="302" x2="282" y2="272" stroke="#a78bfa" stroke-width="1.5" opacity="0.25"/>
+
+  <!-- Central hexagonal core -->
+  <polygon
+    points="256,204 301,230 301,282 256,308 211,282 211,230"
+    fill="none"
+    stroke="url(#core)"
+    stroke-width="3.5"
+    stroke-linejoin="round"
+    opacity="0.9"
+  />
+
+  <!-- Core inner glow -->
+  <polygon
+    points="256,218 290,238 290,274 256,294 222,274 222,238"
+    fill="url(#core)"
+    opacity="0.12"
+  />
+
+  <!-- Eye / consciousness dot -->
+  <circle cx="256" cy="256" r="14" fill="url(#core)" filter="url(#blurSm)" opacity="0.8"/>
+  <circle cx="256" cy="256" r="7" fill="#fff" opacity="0.95"/>
+
+  <!-- Satellite orbs -->
+  <circle cx="160" cy="196" r="10" fill="url(#orbL)" opacity="0.8"/>
+  <circle cx="160" cy="196" r="4" fill="#fff" opacity="0.7"/>
+
+  <circle cx="352" cy="196" r="10" fill="url(#orbR)" opacity="0.8"/>
+  <circle cx="352" cy="196" r="4" fill="#fff" opacity="0.7"/>
+
+  <circle cx="160" cy="316" r="7" fill="url(#orbL)" opacity="0.5"/>
+  <circle cx="160" cy="316" r="3" fill="#fff" opacity="0.5"/>
+
+  <circle cx="352" cy="316" r="7" fill="url(#orbR)" opacity="0.5"/>
+  <circle cx="352" cy="316" r="3" fill="#fff" opacity="0.5"/>
+
+  <!-- Accent particles -->
+  <circle cx="130" cy="256" r="2.5" fill="#00f0ff" opacity="0.6"/>
+  <circle cx="382" cy="256" r="2.5" fill="#a78bfa" opacity="0.6"/>
+  <circle cx="256" cy="130" r="2" fill="#00f0ff" opacity="0.4"/>
+  <circle cx="256" cy="382" r="2" fill="#7c3aed" opacity="0.4"/>
+</svg>

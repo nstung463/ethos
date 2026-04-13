@@ -1,66 +1,56 @@
 #!/bin/bash
 set -e
 
-echo "Ethos Full Stack Startup"
-echo "========================"
+echo "Ethos Docker Startup"
+echo "===================="
 
 if [ ! -f .env ]; then
-    echo ".env not found. Creating from template..."
+    echo ".env not found. Creating from .env.example..."
     cp .env.example .env
-    echo "Edit .env with your API keys, then run again."
+    echo "Please edit .env with your API keys, then run again."
     exit 1
 fi
 
-API_KEY=$(grep OPEN_TERMINAL_API_KEY .env | cut -d= -f2)
-if [ -z "$API_KEY" ] || [ "$API_KEY" = "your-random-secret-key-change-me" ]; then
-    echo "Error: OPEN_TERMINAL_API_KEY not configured"
-    echo "Edit .env and set a proper API key"
+if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker not found. Please install Docker first."
     exit 1
 fi
 
-for port in 8000 8080 3000; do
-    if netstat -tulpn 2>/dev/null | grep -q ":$port "; then
-        echo "Error: Port $port is already in use"
-        exit 1
-    fi
-done
+if ! docker compose version >/dev/null 2>&1; then
+    echo "Docker Compose v2 not found. Please update Docker."
+    exit 1
+fi
 
-echo "Configuration OK"
+echo "Configuration looks good."
 echo
 
-echo "Starting Docker services..."
-docker-compose up -d
+echo "Building and starting services..."
+docker compose up -d --build
 
 echo
-echo "Waiting for services to be healthy..."
+echo "Waiting for services to become healthy..."
 sleep 10
 
-echo "Health checks:"
+echo "Health checks"
 
-if curl -s http://localhost:8080/v1/models > /dev/null; then
-    echo "  OK Ethos API: http://localhost:8080"
+if curl -fsS http://localhost:8080/v1/models > /dev/null; then
+    echo "  [OK]   Backend: http://localhost:8080"
 else
-    echo "  FAIL Ethos API: NOT RESPONDING"
+    echo "  [FAIL] Backend: http://localhost:8080"
 fi
 
-if curl -s -H "Authorization: Bearer $API_KEY" http://localhost:8000/health > /dev/null; then
-    echo "  OK Open Terminal: http://localhost:8000"
+if curl -fsS http://localhost:3000 > /dev/null; then
+    echo "  [OK]   Frontend: http://localhost:3000"
 else
-    echo "  FAIL Open Terminal: NOT RESPONDING"
-fi
-
-if curl -s http://localhost:3000 > /dev/null; then
-    echo "  OK Ethos Frontend: http://localhost:3000"
-else
-    echo "  FAIL Ethos Frontend: NOT RESPONDING"
+    echo "  [FAIL] Frontend: http://localhost:3000"
 fi
 
 echo
-echo "Full stack ready"
-echo "Open http://localhost:3000 in your browser"
+echo "Startup complete."
+echo "Open http://localhost:3000 in your browser."
 echo
-echo "Useful commands:"
-echo "  docker-compose logs -f ethos-api"
-echo "  docker-compose logs -f open-terminal"
-echo "  docker-compose logs -f ethos-frontend"
-echo "  docker-compose down"
+echo "Useful commands"
+echo "  docker compose ps"
+echo "  docker compose logs -f ethos-backend"
+echo "  docker compose logs -f ethos-frontend"
+echo "  docker compose down"

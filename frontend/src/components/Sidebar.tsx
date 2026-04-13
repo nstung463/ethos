@@ -48,13 +48,13 @@ function SectionHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="mb-1 flex items-center gap-1 px-1">
+    <div className="mb-2 flex items-center gap-2 px-2">
         <button
           type="button"
           onClick={onToggle}
-          className="flex min-w-0 flex-1 items-center gap-1 rounded-lg px-2 py-1 text-[9.5px] font-normal tracking-[0.02em] text-[var(--text-faint)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-muted)] cursor-pointer"
+          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)] cursor-pointer"
         >
-        <ChevronDown size={12} strokeWidth={1.9} className={expanded ? "rotate-0 transition-transform" : "-rotate-90 transition-transform"} />
+        <ChevronDown size={14} strokeWidth={2} className={expanded ? "rotate-0 transition-transform" : "-rotate-90 transition-transform"} />
         <span className="truncate">{title}</span>
       </button>
       {action}
@@ -77,7 +77,7 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="group flex h-9 w-full items-center gap-3 rounded-[10px] px-3 text-sm text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] cursor-pointer"
+      className="group flex h-9 w-full items-center gap-3 rounded-[10px] px-3 text-[8px] text-[var(--text-secondary)] transition hover:bg-[var(--surface-hover)] cursor-pointer"
     >
       <span className="flex size-[18px] items-center justify-center text-[var(--text-soft)]">{icon}</span>
       <span className="truncate">{label}</span>
@@ -109,8 +109,8 @@ function ProjectItem({
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]",
       ].join(" ")}
     >
-      <span className="min-w-0 flex-1 truncate text-[13px] font-medium">{label}</span>
-      <span className={active ? "text-[11px] text-[var(--text-muted)]" : "text-[11px] text-[var(--text-soft)]"}>{count}</span>
+      <span className="min-w-0 flex-1 truncate text-[12px] font-medium">{label}</span>
+      <span className={active ? "text-[10px] text-[var(--text-muted)]" : "text-[10px] text-[var(--text-soft)]"}>{count}</span>
     </button>
   );
 }
@@ -136,7 +136,7 @@ export default function Sidebar({
 }) {
   const [search, setSearch] = useState("");
   const deferredSearch = useDeferredValue(search);
-  const [projectsExpanded, setProjectsExpanded] = useState(true);
+  const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [tasksExpanded, setTasksExpanded] = useState(true);
 
   const needle = deferredSearch.trim().toLowerCase();
@@ -186,8 +186,8 @@ export default function Sidebar({
             <Bot aria-hidden="true" size={18} strokeWidth={1.8} />
           </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold text-[var(--text-primary)]">ethos</div>
-              <div className="truncate text-xs text-[var(--text-soft)]">Workspace</div>
+              <div className="truncate text-[13px] font-semibold text-[var(--text-primary)]">ethos</div>
+              <div className="truncate text-[11px] text-[var(--text-soft)]">Workspace</div>
             </div>
           </div>
 
@@ -216,7 +216,7 @@ export default function Sidebar({
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[var(--text-secondary)] outline-none placeholder:text-[var(--text-faint)]"
+                  className="min-w-0 flex-1 bg-transparent text-[13px] text-[var(--text-secondary)] outline-none placeholder:text-[var(--text-faint)]"
                 />
                 <span className="rounded-md border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-faint)]">Ctrl+K</span>
               </div>
@@ -263,7 +263,7 @@ export default function Sidebar({
                       />
                     ))
                   ) : (
-                    <div className="px-3 py-4 text-center text-xs text-[var(--text-soft)]">{search ? "No tasks found" : "No tasks yet"}</div>
+                    <div className="px-3 py-4 text-center text-[11px] text-[var(--text-soft)]">{search ? "No tasks found" : "No tasks yet"}</div>
                   )}
                 </div>
               ) : null}
@@ -289,8 +289,8 @@ export default function Sidebar({
               <Bot size={15} strokeWidth={2} />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-sm font-medium text-[var(--text-primary)]">Ethos App</div>
-              <div className="truncate text-[11px] text-[var(--text-soft)]">frontend v0.1.0</div>
+              <div className="truncate text-[12px] font-medium text-[var(--text-primary)]">Ethos App</div>
+              <div className="truncate text-[10px] text-[var(--text-soft)]">frontend v0.1.0</div>
             </div>
           </div>
         </footer>

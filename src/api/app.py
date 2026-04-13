@@ -1,14 +1,26 @@
 """FastAPI app initialization and middleware configuration."""
 
+from contextlib import asynccontextmanager
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from src.api.services.daytona_manager import build_daytona_session_manager
 from src.logger import setup_logging
 
-from api.routes import files_router, terminals_router, v1_router
+from src.api.routes import files_router, terminals_router, v1_router
 
 load_dotenv()
 setup_logging()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.daytona_manager = build_daytona_session_manager()
+    try:
+        yield
+    finally:
+        app.state.daytona_manager.shutdown()
 
 
 def create_app() -> FastAPI:
@@ -17,6 +29,7 @@ def create_app() -> FastAPI:
         title="Ethos API",
         version="1.0.0",
         description="OpenAI-compatible API for Ethos LangGraph agent",
+        lifespan=lifespan,
     )
 
     # ── CORS middleware ────────────────────────────────────────────────────

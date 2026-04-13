@@ -1,23 +1,27 @@
-import { ChevronDown, Moon, SunMedium } from "lucide-react";
+import { ChevronDown, Ellipsis, Moon, Share2, SunMedium, UsersRound } from "lucide-react";
 import type { ModelInfo, ChatThread } from "../types";
 import { getModeConfig } from "../constants";
 
 export default function Header({
   thread,
+  selectedModelId,
   models,
   loadingModels,
   onModelChange,
   theme,
   onToggleTheme,
+  showConversationActions,
 }: {
   thread: ChatThread | null;
+  selectedModelId: string;
   models: ModelInfo[];
   loadingModels: boolean;
   onModelChange: (modelId: string) => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
+  showConversationActions: boolean;
 }) {
-  const activeModel = thread?.model || models[0]?.id || "";
+  const activeModel = thread?.model || selectedModelId || models[0]?.id || "";
   const mode = thread?.mode ?? "build";
   const modeConfig = getModeConfig(mode);
 
@@ -33,6 +37,35 @@ export default function Header({
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        {showConversationActions ? (
+          <>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
+              title="Share conversation"
+              aria-label="Share conversation"
+            >
+              <Share2 size={15} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
+              title="Conversation members"
+              aria-label="Conversation members"
+            >
+              <UsersRound size={15} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
+              title="More options"
+              aria-label="More options"
+            >
+              <Ellipsis size={15} strokeWidth={1.8} />
+            </button>
+          </>
+        ) : null}
+
         <button
           type="button"
           onClick={onToggleTheme}

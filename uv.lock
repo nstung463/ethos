@@ -601,6 +601,7 @@ source = { editable = "." }
 dependencies = [
     { name = "daytona" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "langchain" },
     { name = "langchain-anthropic" },
     { name = "langchain-community" },
@@ -632,6 +633,7 @@ requires-dist = [
     { name = "daytona", specifier = ">=0.161.0" },
     { name = "daytona", marker = "extra == 'daytona'" },
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.27" },
     { name = "httpx", marker = "extra == 'open-terminal'", specifier = ">=0.27" },
     { name = "langchain", specifier = ">=0.3" },

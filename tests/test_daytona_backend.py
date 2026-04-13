@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from src.backends.daytona import DaytonaSandbox, create_daytona_sandbox
+from src.backends.daytona import DaytonaSandbox, create_daytona_sandbox, get_or_create_daytona_backend
 
 
 class _ExecResult:
@@ -123,3 +123,54 @@ def test_create_daytona_sandbox_yields_backend_and_cleans_up(
         assert sandbox.deleted is False
 
     assert sandbox.deleted is True
+
+
+def test_get_or_create_daytona_backend_uses_conversation_id_as_name_and_ten_minute_ttl(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    sandbox = _FakeSandbox()
+    created_params: list[object] = []
+
+    module = types.ModuleType("daytona")
+    errors_module = types.ModuleType("daytona.common.errors")
+
+    class DaytonaError(Exception):
+        pass
+
+    class DaytonaConfig:
+        def __init__(self, api_key: str) -> None:
+            self.api_key = api_key
+
+    class CreateSandboxBaseParams:
+        def __init__(self, name: str, auto_delete_interval: int) -> None:
+            self.name = name
+            self.auto_delete_interval = auto_delete_interval
+
+    class Daytona:
+        def __init__(self, _config: DaytonaConfig) -> None:
+            self.sandbox = sandbox
+
+        def create(self, params: CreateSandboxBaseParams) -> _FakeSandbox:
+            created_params.append(params)
+            return self.sandbox
+
+        def get(self, sandbox_id_or_name: str) -> _FakeSandbox:
+            assert sandbox_id_or_name
+            return self.sandbox
+
+    module.Daytona = Daytona
+    module.DaytonaConfig = DaytonaConfig
+    module.CreateSandboxBaseParams = CreateSandboxBaseParams
+    errors_module.DaytonaError = DaytonaError
+
+    monkeypatch.setitem(sys.modules, "daytona", module)
+    monkeypatch.setitem(sys.modules, "daytona.common.errors", errors_module)
+    monkeypatch.setenv("DAYTONA_API_KEY", "test-key")
+
+    lease = get_or_create_daytona_backend(conversation_id="session-123")
+
+    assert lease.backend.id == "sb-1"
+    assert lease.sandbox_name == "session-123"
+    assert lease.is_new is True
+    assert created_params[0].name == "session-123"
+    assert created_params[0].auto_delete_interval == 10

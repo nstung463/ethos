@@ -7,7 +7,7 @@ Modes:
   python ethos.py --open-terminal — OpenTerminal HTTP backend mode
 
 Or as a LangGraph deployment:
-  langgraph dev                — exposes the graph for LangGraph Studio / OpenWebUI
+  langgraph dev                — exposes the graph for LangGraph Studio
 """
 
 import argparse

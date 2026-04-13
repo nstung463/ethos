@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Eye, EyeOff } from "lucide-react";
+import type { UserApiKeys } from "../../types";
 
-export default function ApiKeysSettings() {
-  const [apiKeys, setApiKeys] = useState({
-    openrouter: "",
-    anthropic: "",
-    openai: "",
-  });
-
+export default function ApiKeysSettings({
+  apiKeys,
+  onSave,
+}: {
+  apiKeys: UserApiKeys;
+  onSave: (apiKeys: UserApiKeys) => void;
+}) {
+  const [draftKeys, setDraftKeys] = useState<UserApiKeys>(apiKeys);
   const [showKeys, setShowKeys] = useState({
     openrouter: false,
     anthropic: false,
@@ -16,8 +18,12 @@ export default function ApiKeysSettings() {
 
   const [saved, setSaved] = useState(false);
 
+  useEffect(() => {
+    setDraftKeys(apiKeys);
+  }, [apiKeys]);
+
   const handleChange = (key: keyof typeof apiKeys, value: string) => {
-    setApiKeys((prev) => ({ ...prev, [key]: value }));
+    setDraftKeys((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   };
 
@@ -26,7 +32,7 @@ export default function ApiKeysSettings() {
   };
 
   const handleSave = () => {
-    // In a real app, save to secure storage
+    onSave(draftKeys);
     setSaved(true);
     setTimeout(() => setSaved(false), 3000);
   };
@@ -43,7 +49,7 @@ export default function ApiKeysSettings() {
       <div className="flex gap-2">
         <input
           type={showKeys[key] ? "text" : "password"}
-          value={apiKeys[key]}
+          value={draftKeys[key]}
           onChange={(e) => handleChange(key, e.target.value)}
           placeholder={placeholder}
           className="flex-1 rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] px-3 py-2 text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--accent)]"
@@ -69,7 +75,7 @@ export default function ApiKeysSettings() {
       <div>
         <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">API Keys</h1>
         <p className="mb-6 text-sm text-[var(--text-soft)]">
-          Store your API keys securely. Keys are encrypted and never sent to external services.
+          Your keys stay in this browser and are only sent to your configured Ethos backend at request time.
         </p>
 
         <div className="mb-8 space-y-6">
