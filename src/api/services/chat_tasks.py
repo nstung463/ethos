@@ -129,18 +129,22 @@ async def invoke_structured_task(
     prompt: str,
     task_name: str,
     max_tokens: int,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    deployment: str | None = None,
 ) -> StructuredResultT:
     last_error: Exception | None = None
     methods = structured_output_methods(provider)
 
     for method in methods:
         try:
-            model = build_chat_model(provider, model_name, api_keys=api_keys).bind(
-                max_tokens=max_tokens
-            ).with_structured_output(
-                schema,
-                method=method,
-            )
+            model = build_chat_model(
+                provider, model_name,
+                api_keys=api_keys,
+                base_url=base_url,
+                api_version=api_version,
+                deployment=deployment,
+            ).bind(max_tokens=max_tokens).with_structured_output(schema, method=method)
             return await model.ainvoke([HumanMessage(content=prompt)])
         except Exception as exc:
             last_error = exc
@@ -162,17 +166,32 @@ async def generate_title_task(
     model_id: str,
     messages: list[Message],
     api_keys: Mapping[str, str] | None = None,
+    profile_provider: str | None = None,
+    profile_model: str | None = None,
+    profile_base_url: str | None = None,
+    profile_api_version: str | None = None,
+    profile_deployment: str | None = None,
 ) -> TitleTaskResult:
-    spec = resolve_task_model_spec(model_id)
+    if profile_provider and profile_model:
+        provider, model_name = profile_provider, profile_model
+        base_url, api_version, deployment = profile_base_url, profile_api_version, profile_deployment
+    else:
+        spec = resolve_task_model_spec(model_id)
+        provider, model_name = spec.provider, spec.model
+        base_url = api_version = deployment = None
+
     prompt = TITLE_TASK_PROMPT.format(chat_history=render_chat_history(messages, TITLE_HISTORY_LIMIT))
     return await invoke_structured_task(
-        provider=spec.provider,
-        model_name=spec.model,
+        provider=provider,
+        model_name=model_name,
         api_keys=api_keys,
         schema=TitleTaskResult,
         prompt=prompt,
         task_name="title",
         max_tokens=TITLE_MAX_TOKENS,
+        base_url=base_url,
+        api_version=api_version,
+        deployment=deployment,
     )
 
 
@@ -181,16 +200,31 @@ async def generate_follow_ups_task(
     model_id: str,
     messages: list[Message],
     api_keys: Mapping[str, str] | None = None,
+    profile_provider: str | None = None,
+    profile_model: str | None = None,
+    profile_base_url: str | None = None,
+    profile_api_version: str | None = None,
+    profile_deployment: str | None = None,
 ) -> FollowUpsTaskResult:
-    spec = resolve_task_model_spec(model_id)
+    if profile_provider and profile_model:
+        provider, model_name = profile_provider, profile_model
+        base_url, api_version, deployment = profile_base_url, profile_api_version, profile_deployment
+    else:
+        spec = resolve_task_model_spec(model_id)
+        provider, model_name = spec.provider, spec.model
+        base_url = api_version = deployment = None
+
     prompt = FOLLOW_UP_TASK_PROMPT.format(chat_history=render_chat_history(messages, FOLLOW_UP_HISTORY_LIMIT))
     result = await invoke_structured_task(
-        provider=spec.provider,
-        model_name=spec.model,
+        provider=provider,
+        model_name=model_name,
         api_keys=api_keys,
         schema=FollowUpsTaskResult,
         prompt=prompt,
         task_name="follow_ups",
         max_tokens=FOLLOW_UP_MAX_TOKENS,
+        base_url=base_url,
+        api_version=api_version,
+        deployment=deployment,
     )
     return FollowUpsTaskResult(follow_ups=normalize_follow_ups(result.follow_ups))

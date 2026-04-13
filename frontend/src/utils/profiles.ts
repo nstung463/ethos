@@ -1,0 +1,83 @@
+import { API_KEYS_STORAGE_KEY, PROFILES_STORAGE_KEY } from "../constants";
+import type { ProviderProfile } from "../types";
+
+function migrateFromApiKeys(): ProviderProfile[] {
+  const raw = localStorage.getItem(API_KEYS_STORAGE_KEY);
+  if (!raw) return [];
+  try {
+    const old = JSON.parse(raw) as Record<string, string>;
+    const profiles: ProviderProfile[] = [];
+    if (old.openrouter?.trim()) {
+      profiles.push({
+        id: crypto.randomUUID(),
+        name: "OpenRouter",
+        provider: "openrouter",
+        apiKey: old.openrouter,
+        model: "openai/gpt-4o-mini",
+      });
+    }
+    if (old.anthropic?.trim()) {
+      profiles.push({
+        id: crypto.randomUUID(),
+        name: "Anthropic",
+        provider: "anthropic",
+        apiKey: old.anthropic,
+        model: "claude-opus-4-5",
+      });
+    }
+    if (old.openai?.trim()) {
+      profiles.push({
+        id: crypto.randomUUID(),
+        name: "OpenAI",
+        provider: "openai",
+        apiKey: old.openai,
+        model: "gpt-4o",
+      });
+    }
+    return profiles;
+  } catch {
+    return [];
+  }
+}
+
+export function loadProfiles(): ProviderProfile[] {
+  const raw = localStorage.getItem(PROFILES_STORAGE_KEY);
+  if (!raw) {
+    const migrated = migrateFromApiKeys();
+    if (migrated.length > 0) {
+      saveProfiles(migrated);
+      localStorage.removeItem(API_KEYS_STORAGE_KEY);
+    }
+    return migrated;
+  }
+  try {
+    return JSON.parse(raw) as ProviderProfile[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveProfiles(profiles: ProviderProfile[]): void {
+  localStorage.setItem(PROFILES_STORAGE_KEY, JSON.stringify(profiles));
+}
+
+export function newEmptyProfile(): ProviderProfile {
+  return {
+    id: crypto.randomUUID(),
+    name: "",
+    provider: "openrouter",
+    apiKey: "",
+    model: "",
+  };
+}
+
+export function validateProfile(p: ProviderProfile): string | null {
+  if (!p.name.trim()) return "Name is required";
+  if (!p.model.trim()) return "Model ID is required";
+  if (!p.apiKey.trim()) return "API key is required";
+  if (p.provider === "openai_compatible" && !p.baseUrl?.trim())
+    return "Base URL is required for OpenAI-compatible provider";
+  if (p.provider === "azure_openai" && !p.deployment?.trim())
+    return "Deployment name is required for Azure OpenAI";
+  return null;
+}

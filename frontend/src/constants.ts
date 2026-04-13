@@ -1,8 +1,18 @@
-import type { ModeConfig, UserApiKeys } from "./types";
+import type { ModeConfig, ProviderType, UserApiKeys } from "./types";
 
 export const STORAGE_KEY = "ethos.frontend.threads.v2";
 export const LEGACY_STORAGE_KEY = "ethos.frontend.threads.v1";
+/** @deprecated kept for migration reads only */
 export const API_KEYS_STORAGE_KEY = "ethos.frontend.api-keys.v1";
+export const PROFILES_STORAGE_KEY = "ethos.frontend.profiles.v1";
+
+export const PROVIDER_OPTIONS: { value: ProviderType; label: string }[] = [
+  { value: "openrouter", label: "OpenRouter" },
+  { value: "anthropic", label: "Anthropic" },
+  { value: "openai", label: "OpenAI" },
+  { value: "azure_openai", label: "Azure OpenAI" },
+  { value: "openai_compatible", label: "OpenAI Compatible" },
+];
 
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -79,6 +89,7 @@ export function getModeConfig(mode: string): ModeConfig {
   return MODES.find((m) => m.id === mode) ?? MODES[0];
 }
 
+/** @deprecated use profiles instead */
 export const EMPTY_API_KEYS: UserApiKeys = {
   openrouter: "",
   anthropic: "",

@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import type { SettingsSection, UserApiKeys } from "../types";
+import type { ProviderProfile, SettingsSection } from "../types";
 import SettingsSubSidebar from "./SettingsSubSidebar";
 import GeneralSettings from "./settings/GeneralSettings";
 import AppearanceSettings from "./settings/AppearanceSettings";
-import ApiKeysSettings from "./settings/ApiKeysSettings";
+import ProfilesSettings from "./settings/ProfilesSettings";
 import ModelSettings from "./settings/ModelSettings";
 import SecuritySettings from "./settings/SecuritySettings";
 
@@ -12,14 +12,16 @@ export default function SettingsPage({
   onClose,
   theme,
   onThemeChange,
-  apiKeys,
-  onApiKeysSave,
+  profiles,
+  activeProfileId,
+  onProfilesSave,
 }: {
   onClose: () => void;
   theme: "dark" | "light";
   onThemeChange: () => void;
-  apiKeys: UserApiKeys;
-  onApiKeysSave: (apiKeys: UserApiKeys) => void;
+  profiles: ProviderProfile[];
+  activeProfileId: string;
+  onProfilesSave: (profiles: ProviderProfile[], activeProfileId: string) => void;
 }) {
   const [section, setSection] = useState<SettingsSection>("general");
   const [visible, setVisible] = useState(false);
@@ -46,8 +48,14 @@ export default function SettingsPage({
           return <GeneralSettings />;
         case "appearance":
           return <AppearanceSettings theme={theme} onThemeChange={onThemeChange} />;
-        case "api-keys":
-          return <ApiKeysSettings apiKeys={apiKeys} onSave={onApiKeysSave} />;
+        case "profiles":
+          return (
+            <ProfilesSettings
+              profiles={profiles}
+              activeProfileId={activeProfileId}
+              onSave={onProfilesSave}
+            />
+          );
       case "model-settings":
         return <ModelSettings />;
       case "security":
