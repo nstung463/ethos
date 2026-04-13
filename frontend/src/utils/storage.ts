@@ -1,5 +1,5 @@
 import { STORAGE_KEY, LEGACY_STORAGE_KEY } from "../constants";
-import type { ChatThread, Message, ComposerMode } from "../types";
+import type { Attachment, ChatThread, Message, ComposerMode } from "../types";
 
 function createId(prefix: string) {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -21,6 +21,9 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     toolEvents: Array.isArray(msg.toolEvents)
       ? msg.toolEvents.filter((x): x is string => typeof x === "string")
       : [],
+    followUps: Array.isArray(msg.followUps)
+      ? msg.followUps.filter((x): x is string => typeof x === "string")
+      : [],
     createdAt: typeof msg.createdAt === "string" ? msg.createdAt : new Date().toISOString(),
     status:
       msg.status === "streaming" || msg.status === "error" || msg.status === "done"
@@ -29,6 +32,20 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     error: typeof msg.error === "string" ? msg.error : "",
     thinkingDuration: typeof msg.thinkingDuration === "number" ? msg.thinkingDuration : undefined,
   }));
+
+  const rawAttachments = Array.isArray(thread.attachments)
+    ? (thread.attachments as Array<Record<string, unknown>>)
+    : [];
+
+  const attachments: Attachment[] = rawAttachments
+    .map((attachment) => ({
+      id: typeof attachment.id === "string" ? attachment.id : "",
+      filename: typeof attachment.filename === "string" ? attachment.filename : "",
+      contentType:
+        typeof attachment.contentType === "string" ? attachment.contentType : undefined,
+      size: typeof attachment.size === "number" ? attachment.size : undefined,
+    }))
+    .filter((attachment) => attachment.id && attachment.filename);
 
   return {
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
@@ -39,6 +56,7 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
         ? (thread.mode as ComposerMode)
         : "build",
     messages,
+    attachments,
     updatedAt:
       typeof thread.updatedAt === "string" ? thread.updatedAt : new Date().toISOString(),
   };

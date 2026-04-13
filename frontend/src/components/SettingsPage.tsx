@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import type { SettingsSection } from "../types";
+import type { SettingsSection, UserApiKeys } from "../types";
 import SettingsSubSidebar from "./SettingsSubSidebar";
 import GeneralSettings from "./settings/GeneralSettings";
 import AppearanceSettings from "./settings/AppearanceSettings";
@@ -12,10 +12,14 @@ export default function SettingsPage({
   onClose,
   theme,
   onThemeChange,
+  apiKeys,
+  onApiKeysSave,
 }: {
   onClose: () => void;
   theme: "dark" | "light";
   onThemeChange: () => void;
+  apiKeys: UserApiKeys;
+  onApiKeysSave: (apiKeys: UserApiKeys) => void;
 }) {
   const [section, setSection] = useState<SettingsSection>("general");
   const [visible, setVisible] = useState(false);
@@ -37,13 +41,13 @@ export default function SettingsPage({
   };
 
   const renderSection = () => {
-    switch (section) {
-      case "general":
-        return <GeneralSettings />;
-      case "appearance":
-        return <AppearanceSettings theme={theme} onThemeChange={onThemeChange} />;
-      case "api-keys":
-        return <ApiKeysSettings />;
+      switch (section) {
+        case "general":
+          return <GeneralSettings />;
+        case "appearance":
+          return <AppearanceSettings theme={theme} onThemeChange={onThemeChange} />;
+        case "api-keys":
+          return <ApiKeysSettings apiKeys={apiKeys} onSave={onApiKeysSave} />;
       case "model-settings":
         return <ModelSettings />;
       case "security":

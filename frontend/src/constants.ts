@@ -1,7 +1,8 @@
-import type { ModeConfig } from "./types";
+import type { ModeConfig, UserApiKeys } from "./types";
 
 export const STORAGE_KEY = "ethos.frontend.threads.v2";
 export const LEGACY_STORAGE_KEY = "ethos.frontend.threads.v1";
+export const API_KEYS_STORAGE_KEY = "ethos.frontend.api-keys.v1";
 
 export const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, "") ??
@@ -49,6 +50,37 @@ export const MODES: ModeConfig[] = [
   },
 ];
 
+export const QUICK_ACTIONS = [
+  {
+    title: "Create slides",
+    prompt: "Create a polished slide deck for a product strategy review.",
+  },
+  {
+    title: "Build website",
+    prompt: "Build a responsive marketing website with clear sections and calls to action.",
+  },
+  {
+    title: "Develop desktop apps",
+    prompt: "Plan and scaffold a desktop app with the right architecture and packaging approach.",
+  },
+  {
+    title: "Design",
+    prompt: "Design a clean, modern product experience for this workflow.",
+  },
+];
+
+export const CHAT_SUGGESTIONS = [
+  // "Create a presentation deck for a product strategy review",
+  // "Draft a customer email then attach the latest project brief",
+  // "Check my calendar and suggest a review slot this week",
+];
+
 export function getModeConfig(mode: string): ModeConfig {
   return MODES.find((m) => m.id === mode) ?? MODES[0];
 }
+
+export const EMPTY_API_KEYS: UserApiKeys = {
+  openrouter: "",
+  anthropic: "",
+  openai: "",
+};

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getToolLabel } from "../utils/threads";
+import { getToolLabel, getToolParams } from "../utils/threads";
 
 function SpinnerIcon() {
   return (
@@ -72,26 +72,28 @@ function SlidePanel({ open, children }: { open: boolean; children: ReactNode }) 
   );
 }
 
-function ToolRow({ label, isLast }: { label: string; isLast: boolean }) {
+function ToolRow({ event }: { event: string; isLast?: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const label = getToolLabel(event);
+  const fullParams = getToolParams(event);
 
   return (
-    <div className={!isLast ? "border-b border-[var(--border-subtle)]" : ""}>
+    <div>
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left text-[11px] text-[var(--text-soft)] transition-colors hover:bg-[var(--surface-soft)] hover:text-[var(--text-secondary)] cursor-pointer"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-[12px] text-[var(--text-soft)] hover:text-[var(--text-muted)] transition-colors"
       >
         <WrenchIcon />
-        <span className="flex-1 font-mono">{label}</span>
+        <div className="min-w-0 flex-1">{label}</div>
         <ChevronIcon open={expanded} />
       </button>
       <SlidePanel open={expanded}>
-        <div className="px-2.5 pb-1.5 pt-0">
-          <div className="rounded-md border border-[var(--border-subtle)] bg-[var(--app-bg)] px-2.5 py-1.5 font-mono text-[11px] text-[var(--text-faint)]">
-            <div className="mb-1 text-[9px] font-sans uppercase tracking-wider text-[var(--text-fainter)]">Tool call</div>
-            <span className="text-[var(--accent)]">{label}</span>
-            <span className="text-[var(--text-fainter)]">(...)</span>
+        <div className="px-3 pb-2 pt-1">
+          <div className="overflow-x-auto rounded border border-[var(--border-subtle)] bg-[var(--app-bg)] px-2.5 py-2 font-mono text-[10px] text-[var(--text-faint)]">
+            <pre className="whitespace-pre-wrap break-words leading-relaxed text-[var(--text-faint)]">
+              {fullParams || "No parameters"}
+            </pre>
           </div>
         </div>
       </SlidePanel>
@@ -153,31 +155,33 @@ export default function ThinkingPanel({
       </button>
 
       <SlidePanel open={open}>
-        <div className="mt-1.5 overflow-hidden rounded-lg border border-[var(--border-subtle)] bg-[var(--panel-bg-soft)]">
+        <div className="mt-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--panel-bg-soft)] overflow-hidden">
           {tools.length > 0 ? (
             <div className={hasReasoning ? "border-b border-[var(--border-subtle)]" : ""}>
-              <div className="px-2.5 pt-1 pb-0.5">
-                <span className="text-[8px] font-medium uppercase tracking-wide text-[var(--text-fainter)]">Tools used</span>
+              <div className="px-3 py-2 bg-[var(--surface-soft)]">
+                <div className="text-[11px] font-medium text-[var(--text-muted)]">Tools used</div>
               </div>
-              {tools.map((event, i) => (
-                <ToolRow key={i} label={getToolLabel(event)} isLast={i === tools.length - 1} />
-              ))}
+              <div className="divide-y divide-[var(--border-subtle)]">
+                {tools.map((event, i) => (
+                  <ToolRow key={i} event={event} />
+                ))}
+              </div>
             </div>
           ) : null}
 
           {hasReasoning ? (
-            <div className="px-2.5 pt-2 pb-2.5">
+            <div className="px-3 py-2.5">
               {tools.length > 0 ? (
-                <div className="mb-1.5 text-[8px] font-medium uppercase tracking-wide text-[var(--text-fainter)]">Reasoning</div>
+                <div className="text-[11px] font-medium text-[var(--text-muted)] mb-2">Reasoning</div>
               ) : null}
-              <pre className="text-[11px] leading-[1.6] whitespace-pre-wrap break-words font-mono text-[var(--text-faint)]">
+              <pre className="text-[11px] leading-relaxed whitespace-pre-wrap break-words font-mono text-[var(--text-faint)]">
                 {reasoning}
               </pre>
             </div>
           ) : null}
 
           {isStreaming ? (
-            <div className="flex items-center gap-1.5 px-2.5 pb-2">
+            <div className="flex items-center gap-1.5 px-3 py-2 border-t border-[var(--border-subtle)]">
               <span className="inline-flex gap-1">
                 <span className="typing-dot" />
                 <span className="typing-dot" style={{ animationDelay: "0.18s" }} />

@@ -40,4 +40,4 @@ build-backend = "hatchling.build"
 asyncio_mode = "auto"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ethos"]
+packages = ["src"]

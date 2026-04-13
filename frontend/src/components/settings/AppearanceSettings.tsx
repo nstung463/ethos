@@ -12,12 +12,10 @@ export default function AppearanceSettings({
   const [fontSize, setFontSize] = useState(14);
   const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
 
-  // Detect system preference on mount
   useEffect(() => {
     const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
     const systemTheme = isDark ? "dark" : "light";
 
-    // Check if current theme matches system
     if (theme === systemTheme) {
       setThemeMode("system");
     } else {
@@ -29,14 +27,12 @@ export default function AppearanceSettings({
     setThemeMode(mode);
 
     if (mode === "system") {
-      // Toggle to system preference
       const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
       const systemTheme = isDark ? "dark" : "light";
       if (theme !== systemTheme) {
         onThemeChange();
       }
     } else if (mode !== theme) {
-      // Toggle theme
       onThemeChange();
     }
   };
@@ -46,13 +42,11 @@ export default function AppearanceSettings({
       <div>
         <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">Appearance</h1>
 
-        {/* Theme Section */}
         <div className="space-y-4 mb-8">
           <label className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
             Theme
           </label>
           <div className="flex gap-4">
-            {/* Light Theme Card */}
             <button
               type="button"
               onClick={() => handleThemeSelect("light")}
@@ -66,7 +60,6 @@ export default function AppearanceSettings({
               <span className="text-xs font-medium text-[var(--text-secondary)]">Light</span>
             </button>
 
-            {/* Dark Theme Card */}
             <button
               type="button"
               onClick={() => handleThemeSelect("dark")}
@@ -80,7 +73,6 @@ export default function AppearanceSettings({
               <span className="text-xs font-medium text-[var(--text-secondary)]">Dark</span>
             </button>
 
-            {/* System Theme Card */}
             <button
               type="button"
               onClick={() => handleThemeSelect("system")}
@@ -99,7 +91,6 @@ export default function AppearanceSettings({
           </p>
         </div>
 
-        {/* Font Size Section */}
         <div className="space-y-4">
           <label htmlFor="fontSize" className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
             Font Size

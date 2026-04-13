@@ -9,8 +9,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from api.deps import get_file_store, get_open_terminal_api_key, get_open_terminal_base_url
-from api.services.file_store import FileStore
+from src.api.deps import get_file_store, get_open_terminal_api_key, get_open_terminal_base_url
+from src.api.services.file_store import FileStore
 
 router = APIRouter(prefix="/api/files", tags=["files"])
 

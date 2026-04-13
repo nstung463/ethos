@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response, WebSocket, Web
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
-from api.deps import get_open_terminal_api_key, get_open_terminal_base_url, get_terminal_name
+from src.api.deps import get_open_terminal_api_key, get_open_terminal_base_url, get_terminal_name
 
 router = APIRouter(prefix="/api/terminals", tags=["terminals"])
 

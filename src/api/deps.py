@@ -4,7 +4,10 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from api.services.file_store import FileStore
+from fastapi import Request
+
+from src.api.services.daytona_manager import DaytonaSessionManager
+from src.api.services.file_store import FileStore
 
 
 @lru_cache(maxsize=1)
@@ -23,3 +26,7 @@ def get_open_terminal_api_key() -> str:
 
 def get_terminal_name() -> str:
     return os.getenv("ETHOS_TERMINAL_NAME", "Ethos Sandbox")
+
+
+def get_daytona_session_manager(request: Request) -> DaytonaSessionManager:
+    return request.app.state.daytona_manager

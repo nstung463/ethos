@@ -11,6 +11,7 @@ export function createEmptyThread(model = "", mode: ComposerMode = "build"): Cha
     model,
     mode,
     messages: [],
+    attachments: [],
     updatedAt: new Date().toISOString(),
   };
 }
@@ -88,6 +89,21 @@ export function mergeReasoning(message: Message, chunk: string): Message {
 export function getToolLabel(input: string) {
   const match = input.match(/Using tool `([^`]+)`/);
   return match?.[1] ?? input;
+}
+
+export function getToolParams(input: string) {
+  const normalized = input.trim();
+  const match = normalized.match(/^Using tool `([^`]+)`\(([\s\S]*)\)$/);
+  return match?.[2]?.trim() ?? "";
+}
+
+export function formatToolParams(input: string, maxLength = 360) {
+  const params = getToolParams(input);
+  if (!params) return "No parameters";
+
+  const compact = params.replace(/\s+/g, " ").trim();
+  if (compact.length <= maxLength) return compact;
+  return `${compact.slice(0, maxLength).trimEnd()}...`;
 }
 
 export function toApiMessages(messages: Message[], modeInstruction: string) {

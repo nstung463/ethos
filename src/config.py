@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Mapping
 
 from langchain.chat_models import init_chat_model
 from langchain_core.language_models import BaseChatModel
@@ -69,6 +69,13 @@ OPENAI_COMPATIBLE_PROVIDERS = {
     },
 }
 
+REQUEST_API_KEY_FIELDS = {
+    "openrouter": "openrouter",
+    "anthropic": "anthropic",
+    "openai": "openai",
+    "azure_openai": "openai",
+}
+
 
 @dataclass(frozen=True)
 class ModelSpec:
@@ -88,16 +95,37 @@ class MCPServerSpec:
     auth_url: str | None = None
 
 
-def build_chat_model(provider: str, model_name: str) -> BaseChatModel:
+def resolve_request_api_key(provider: str, api_keys: Mapping[str, str] | None = None) -> str:
+    """Resolve an optional per-request API key for the given provider."""
+    if not api_keys:
+        return ""
+
+    provider = provider.strip().lower()
+    provider = PROVIDER_ALIASES.get(provider, provider)
+    field = REQUEST_API_KEY_FIELDS.get(provider)
+    if not field:
+        return ""
+
+    value = api_keys.get(field, "")
+    return value.strip() if isinstance(value, str) else ""
+
+
+def build_chat_model(
+    provider: str,
+    model_name: str,
+    *,
+    api_keys: Mapping[str, str] | None = None,
+) -> BaseChatModel:
     """Build a chat model from provider id and model name (init_chat_model style)."""
     provider = provider.strip().lower()
     provider = PROVIDER_ALIASES.get(provider, provider)
     logger.info("Building chat model (provider=%s, model=%s)", provider, model_name)
+    request_api_key = resolve_request_api_key(provider, api_keys)
 
     if provider in OPENAI_COMPATIBLE_PROVIDERS:
         conf = OPENAI_COMPATIBLE_PROVIDERS[provider]
         base_url = os.getenv(conf["base_url_env"], conf["base_url"])
-        api_key = os.getenv(conf["api_key_env"], "")
+        api_key = request_api_key or os.getenv(conf["api_key_env"], "")
         kwargs: dict[str, str | float] = {
             "base_url": base_url,
             "temperature": 0.0,
@@ -112,13 +140,18 @@ def build_chat_model(provider: str, model_name: str) -> BaseChatModel:
             or os.getenv("OPENAI_API_VERSION")
             or "2024-12-01-preview"
         )
-        return init_chat_model(
-            f"{provider}:{model_name}",
-            temperature=0.0,
-            api_version=api_version,
-        )
+        kwargs: dict[str, str | float] = {
+            "temperature": 0.0,
+            "api_version": api_version,
+        }
+        if request_api_key:
+            kwargs["api_key"] = request_api_key
+        return init_chat_model(f"{provider}:{model_name}", **kwargs)
 
-    return init_chat_model(f"{provider}:{model_name}", temperature=0.0)
+    kwargs = {"temperature": 0.0}
+    if request_api_key:
+        kwargs["api_key"] = request_api_key
+    return init_chat_model(f"{provider}:{model_name}", **kwargs)
 
 
 def get_model_registry() -> list[ModelSpec]:
