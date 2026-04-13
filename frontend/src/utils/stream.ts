@@ -1,9 +1,18 @@
 import { API_BASE_URL } from "../constants";
-import type { Attachment, Message, StreamChunk, UserApiKeys } from "../types";
+import type { Attachment, Message, ProviderProfile, StreamChunk } from "../types";
 import { toApiMessages } from "./threads";
 
-function buildMetadata(apiKeys: UserApiKeys) {
-  return { user_api_keys: apiKeys };
+function buildMetadata(profile: ProviderProfile) {
+  return {
+    profile: {
+      provider: profile.provider,
+      api_key: profile.apiKey,
+      model: profile.model,
+      base_url: profile.baseUrl ?? undefined,
+      deployment: profile.deployment ?? undefined,
+      api_version: profile.apiVersion ?? undefined,
+    },
+  };
 }
 
 export async function fetchModels(signal?: AbortSignal) {
@@ -19,7 +28,7 @@ export async function streamChat({
   modeInstruction,
   sessionId,
   fileIds,
-  apiKeys,
+  profile,
   signal,
   onContent,
   onReasoning,
@@ -29,7 +38,7 @@ export async function streamChat({
   modeInstruction: string;
   sessionId: string;
   fileIds: string[];
-  apiKeys: UserApiKeys;
+  profile: ProviderProfile;
   signal: AbortSignal;
   onContent: (chunk: string) => void;
   onReasoning: (chunk: string) => void;
@@ -43,7 +52,7 @@ export async function streamChat({
       stream: true,
       session_id: sessionId,
       file_ids: fileIds,
-      metadata: buildMetadata(apiKeys),
+      metadata: buildMetadata(profile),
     }),
     signal,
   });
@@ -113,13 +122,13 @@ async function postTask<T>(
     model,
     messages,
     modeInstruction,
-    apiKeys,
+    profile,
     signal,
   }: {
     model: string;
     messages: Message[];
     modeInstruction: string;
-    apiKeys: UserApiKeys;
+    profile: ProviderProfile;
     signal?: AbortSignal;
   },
 ): Promise<T> {
@@ -129,7 +138,7 @@ async function postTask<T>(
     body: JSON.stringify({
       model,
       messages: toApiMessages(messages, modeInstruction),
-      metadata: buildMetadata(apiKeys),
+      metadata: buildMetadata(profile),
     }),
     signal,
   });
@@ -145,7 +154,7 @@ export async function generateTitle(input: {
   model: string;
   messages: Message[];
   modeInstruction: string;
-  apiKeys: UserApiKeys;
+  profile: ProviderProfile;
   signal?: AbortSignal;
 }) {
   return postTask<{ title?: string }>("/v1/tasks/title", input);
@@ -155,7 +164,7 @@ export async function generateFollowUps(input: {
   model: string;
   messages: Message[];
   modeInstruction: string;
-  apiKeys: UserApiKeys;
+  profile: ProviderProfile;
   signal?: AbortSignal;
 }) {
   return postTask<{ follow_ups?: string[] }>("/v1/tasks/follow-ups", input);

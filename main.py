@@ -34,14 +34,15 @@ from src.api import create_app
 def main() -> None:
     """Run the API server."""
     reload_enabled = os.getenv("ETHOS_RELOAD", "true").lower() in {"1", "true", "yes", "on"}
+    port = int(os.getenv("PORT", "8080"))
     project_root = Path(__file__).resolve().parent
     if reload_enabled:
         # Uvicorn requires import string when reload/workers is enabled.
-        uvicorn.run("main:create_app", host="0.0.0.0", port=8080, reload=True, factory=True)
+        uvicorn.run("main:create_app", host="0.0.0.0", port=port, reload=True, factory=True)
         return
 
     app = create_app()
-    uvicorn.run(app, host="0.0.0.0", port=8080, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
 
 
 if __name__ == "__main__":

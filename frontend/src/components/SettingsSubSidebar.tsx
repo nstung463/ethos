@@ -3,7 +3,7 @@ import type { SettingsSection } from "../types";
 const SETTINGS_ITEMS: { id: SettingsSection; label: string }[] = [
   { id: "general", label: "General" },
   { id: "appearance", label: "Appearance" },
-  { id: "api-keys", label: "API Keys" },
+  { id: "profiles", label: "Profiles" },
   { id: "model-settings", label: "Model Settings" },
   { id: "security", label: "Security" },
 ];

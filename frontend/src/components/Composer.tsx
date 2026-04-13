@@ -140,6 +140,7 @@ export default function Composer({
   }
 
   const canSend = (!!draft.trim() || attachments.length > 0) && !!activeModel && !isStreaming && !isUploading;
+  const noProfile = !activeModel;
   const placeholder = isLanding ? "Delegate a task or ask a question..." : "Send message to Ethos";
   const landingApps = [
     {
@@ -377,12 +378,16 @@ export default function Composer({
                   </button>
                 ))}
               </div>
-              <span className="ml-1 shrink-0 text-[10px] text-[var(--text-fainter)] sm:text-xs">{activeModel || "No model"}</span>
+              <span className={`ml-1 shrink-0 text-[10px] sm:text-xs ${noProfile ? "text-[var(--danger)]" : "text-[var(--text-fainter)]"}`}>
+                {noProfile ? "Add a profile in Settings" : activeModel}
+              </span>
             </div>
           </div>
         ) : (
           <div className="mt-3 flex items-center justify-between px-1 text-xs text-[var(--text-faint)]">
-            <span>{activeModel || "No model selected"}</span>
+            <span className={noProfile ? "text-[var(--danger)]" : undefined}>
+              {noProfile ? "Add a profile in Settings to start chatting" : activeModel}
+            </span>
             <span>Enter to send, Shift+Enter for a new line</span>
           </div>
         )}

@@ -1,9 +1,9 @@
 import { FormEvent, startTransition, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { MonitorSmartphone, Presentation, Shapes, Sparkles } from "lucide-react";
-import type { AppView, ChatThread, ComposerMode, ModelInfo, UserApiKeys } from "./types";
-import { CHAT_SUGGESTIONS, EMPTY_API_KEYS, QUICK_ACTIONS, getModeConfig } from "./constants";
-import { loadApiKeys, saveApiKeys } from "./utils/apiKeys";
+import type { AppView, ChatThread, ComposerMode, ProviderProfile } from "./types";
+import { CHAT_SUGGESTIONS, QUICK_ACTIONS, getModeConfig } from "./constants";
+import { loadProfiles, saveProfiles } from "./utils/profiles";
 import { loadThreads, saveThreads } from "./utils/storage";
 import { createEmptyThread, createId, mergeReasoning, summarizeTitle } from "./utils/threads";
 import { fetchModels, generateFollowUps, generateTitle, streamChat, uploadManagedFile } from "./utils/stream";
@@ -30,28 +30,28 @@ function getInitialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
-function getInitialApiKeys(): UserApiKeys {
-  if (typeof window === "undefined") return { ...EMPTY_API_KEYS };
-  return loadApiKeys();
+function getInitialProfiles(): ProviderProfile[] {
+  if (typeof window === "undefined") return [];
+  return loadProfiles();
 }
 
 function ChatWorkspace() {
   const navigate = useNavigate();
   const { threadId = "" } = useParams<{ threadId: string }>();
-  const [models, setModels] = useState<ModelInfo[]>([]);
   const [threads, setThreads] = useState<ChatThread[]>(getInitialThreads);
+  const [profiles, setProfiles] = useState<ProviderProfile[]>(getInitialProfiles);
+  const [activeProfileId, setActiveProfileId] = useState<string>(
+    () => getInitialProfiles()[0]?.id ?? "",
+  );
   const [draft, setDraft] = useState("");
-  const [loadingModels, setLoadingModels] = useState(true);
   const [status, setStatus] = useState("Connecting...");
   const [error, setError] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
-  const [apiKeys, setApiKeys] = useState<UserApiKeys>(getInitialApiKeys);
   const [appView, setAppView] = useState<AppView>("chat");
   const [landingMode, setLandingMode] = useState<ComposerMode>("build");
-  const [landingModelId, setLandingModelId] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const reasoningStartRef = useRef<number | null>(null);
 
@@ -64,37 +64,25 @@ function ChatWorkspace() {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
-  useEffect(() => {
-    saveApiKeys(apiKeys);
-  }, [apiKeys]);
-
+  // Connectivity check — keep fetching /v1/models but don't use result for selector
   useEffect(() => {
     const controller = new AbortController();
-    setLoadingModels(true);
-
     fetchModels(controller.signal)
       .then((items) => {
-        setModels(items);
-        setLandingModelId((current) => current || items[0]?.id || "");
-        setStatus(items.length > 0 ? "Connected" : "No models found");
-        startTransition(() => {
-          setThreads((current) =>
-            current.map((thread) => ({
-              ...thread,
-              model: thread.model || items[0]?.id || "",
-            })),
-          );
-        });
+        setStatus(items.length > 0 ? "Connected" : "Connected (no server models)");
       })
-      .catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : "Unable to reach Ethos API";
-        setError(msg);
+      .catch(() => {
         setStatus("API unavailable");
-      })
-      .finally(() => setLoadingModels(false));
-
+      });
     return () => controller.abort();
   }, []);
+
+  // Fallback: if active profile was deleted, select first available
+  useEffect(() => {
+    if (profiles.length > 0 && !profiles.find((p) => p.id === activeProfileId)) {
+      setActiveProfileId(profiles[0].id);
+    }
+  }, [profiles, activeProfileId]);
 
   useEffect(() => {
     if (threadId && threads.length > 0 && !threads.some((thread) => thread.id === threadId)) {
@@ -104,7 +92,12 @@ function ChatWorkspace() {
 
   const activeThread = threads.find((thread) => thread.id === threadId) ?? null;
   const hasMessages = (activeThread?.messages.length ?? 0) > 0;
-  const activeModel = activeThread?.model || landingModelId || models[0]?.id || "";
+  const activeProfile =
+    profiles.find((p) => p.id === (activeThread?.profileId ?? activeProfileId)) ??
+    profiles.find((p) => p.id === activeProfileId) ??
+    profiles[0] ??
+    null;
+  const activeModel = activeProfile?.model ?? activeThread?.model ?? "";
   const activeMode = activeThread?.mode ?? landingMode;
   const modeConfig = getModeConfig(activeMode);
   const quickActionIcons = [Presentation, Shapes, MonitorSmartphone, Sparkles];
@@ -173,12 +166,13 @@ function ChatWorkspace() {
     thread: ChatThread,
     modeInstruction: string,
     options: { generateTitle: boolean },
+    profile: ProviderProfile,
   ) {
     const taskInput = {
-      model: thread.model,
+      model: profile.model,
       messages: thread.messages,
       modeInstruction,
-      apiKeys,
+      profile,
     };
 
     const tasks = [
@@ -238,17 +232,17 @@ function ChatWorkspace() {
     }
   }
 
-  function handleModelChange(modelId: string) {
+  function handleProfileChange(profileId: string) {
+    setActiveProfileId(profileId);
     if (activeThread) {
+      const p = profiles.find((x) => x.id === profileId);
       updateThread(activeThread.id, (thread) => ({
         ...thread,
-        model: modelId,
+        profileId,
+        model: p?.model ?? thread.model,
         updatedAt: new Date().toISOString(),
       }));
-      return;
     }
-
-    setLandingModelId(modelId);
   }
 
   function handleModeChange(mode: ComposerMode) {
@@ -283,6 +277,7 @@ function ChatWorkspace() {
         setThreads((current) => [
           {
             ...nextThread,
+            profileId: activeProfileId,
             attachments: uploaded,
             updatedAt: new Date().toISOString(),
           },
@@ -332,13 +327,14 @@ function ChatWorkspace() {
 
     const prompt = draft.trim();
     const pendingAttachments = activeThread?.attachments ?? [];
-    if ((!prompt && pendingAttachments.length === 0) || !activeModel || isStreaming || isUploading) return;
+    if ((!prompt && pendingAttachments.length === 0) || !activeProfile || isStreaming || isUploading) return;
 
     setError("");
     setStatus(`Running in ${modeConfig.label.toLowerCase()} mode`);
 
     const now = new Date().toISOString();
     const baseThread = activeThread ?? createEmptyThread(activeModel, activeMode);
+    if (!baseThread.profileId) baseThread.profileId = activeProfileId;
     const userMsg = {
       id: createId("msg"),
       role: "user" as const,
@@ -392,7 +388,7 @@ function ChatWorkspace() {
         modeInstruction: modeConfig.instruction,
         sessionId: nextThread.id,
         fileIds: pendingAttachments.map((attachment) => attachment.id),
-        apiKeys,
+        profile: activeProfile,
         signal: controller.signal,
         onContent: (chunk) => {
           updateThread(nextThread.id, (thread) => ({
@@ -441,6 +437,7 @@ function ChatWorkspace() {
         },
         modeConfig.instruction,
         { generateTitle: baseThread.messages.length === 0 },
+        activeProfile,
       );
       setStatus("Ready");
     } catch (err: unknown) {
@@ -482,8 +479,10 @@ function ChatWorkspace() {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }
 
-  function handleApiKeysSave(nextApiKeys: UserApiKeys) {
-    setApiKeys(nextApiKeys);
+  function handleProfilesSave(nextProfiles: ProviderProfile[], nextActiveId: string) {
+    setProfiles(nextProfiles);
+    setActiveProfileId(nextActiveId);
+    saveProfiles(nextProfiles);
   }
 
   return (
@@ -502,10 +501,9 @@ function ChatWorkspace() {
       <div className="flex min-w-0 flex-1 flex-col">
         <Header
           thread={activeThread}
-          selectedModelId={activeModel}
-          models={models}
-          loadingModels={loadingModels}
-          onModelChange={handleModelChange}
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          onProfileChange={handleProfileChange}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           showConversationActions={hasMessages}
@@ -522,13 +520,13 @@ function ChatWorkspace() {
               variant="chat"
               isStreaming={isStreaming}
               isUploading={isUploading}
-               activeModel={activeModel}
-               attachments={activeThread?.attachments ?? []}
-               status={status}
-               error={error}
-               suggestionPrompts={CHAT_SUGGESTIONS}
-                onChange={setDraft}
-                onSubmit={handleSubmit}
+              activeModel={activeProfile?.name ?? activeModel}
+              attachments={activeThread?.attachments ?? []}
+              status={status}
+              error={error}
+              suggestionPrompts={CHAT_SUGGESTIONS}
+              onChange={setDraft}
+              onSubmit={handleSubmit}
               onStop={handleStop}
               onUploadFiles={handleUploadFiles}
               onRemoveAttachment={handleRemoveAttachment}
@@ -549,13 +547,13 @@ function ChatWorkspace() {
                   variant="landing"
                   isStreaming={isStreaming}
                   isUploading={isUploading}
-                   activeModel={activeModel}
-                   attachments={activeThread?.attachments ?? []}
-                   status={status}
-                   error={error}
-                    suggestionPrompts={CHAT_SUGGESTIONS}
-                    onChange={setDraft}
-                    onSubmit={handleSubmit}
+                  activeModel={activeProfile?.name ?? activeModel}
+                  attachments={activeThread?.attachments ?? []}
+                  status={status}
+                  error={error}
+                  suggestionPrompts={CHAT_SUGGESTIONS}
+                  onChange={setDraft}
+                  onSubmit={handleSubmit}
                   onStop={handleStop}
                   onUploadFiles={handleUploadFiles}
                   onRemoveAttachment={handleRemoveAttachment}
@@ -607,8 +605,9 @@ function ChatWorkspace() {
           onClose={() => setAppView("chat")}
           theme={theme}
           onThemeChange={handleToggleTheme}
-          apiKeys={apiKeys}
-          onApiKeysSave={handleApiKeysSave}
+          profiles={profiles}
+          activeProfileId={activeProfileId}
+          onProfilesSave={handleProfilesSave}
         />
       ) : null}
     </div>

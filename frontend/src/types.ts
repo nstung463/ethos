@@ -4,10 +4,29 @@ export type ModelInfo = {
   owned_by?: string;
 };
 
+/** @deprecated use ProviderProfile */
 export type UserApiKeys = {
   openrouter: string;
   anthropic: string;
   openai: string;
+};
+
+export type ProviderType =
+  | "openrouter"
+  | "anthropic"
+  | "openai"
+  | "azure_openai"
+  | "openai_compatible";
+
+export type ProviderProfile = {
+  id: string;
+  name: string;
+  provider: ProviderType;
+  apiKey: string;
+  model: string;
+  baseUrl?: string;
+  deployment?: string;
+  apiVersion?: string;
 };
 
 export type Attachment = {
@@ -37,6 +56,7 @@ export type ChatThread = {
   id: string;
   title: string;
   model: string;
+  profileId?: string;
   mode: ComposerMode;
   messages: Message[];
   attachments: Attachment[];
@@ -67,6 +87,6 @@ export type AppView = "chat" | "settings";
 export type SettingsSection =
   | "general"
   | "appearance"
-  | "api-keys"
+  | "profiles"
   | "model-settings"
   | "security";

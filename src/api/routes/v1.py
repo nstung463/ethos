@@ -129,6 +129,40 @@ def _extract_user_api_keys(request: ChatRequest) -> dict[str, str]:
     return result
 
 
+_VALID_PROVIDERS = frozenset(
+    {"openrouter", "anthropic", "openai", "azure_openai", "openai_compatible",
+     "deepseek", "together", "groq", "xai", "fireworks", "perplexity",
+     "google_genai", "bedrock"}
+)
+
+
+def _extract_profile(request: ChatRequest) -> dict | None:
+    """Extract a provider profile from request metadata, if present and valid."""
+    metadata = request.metadata or {}
+    raw = metadata.get("profile")
+    if not isinstance(raw, dict):
+        return None
+    provider = str(raw.get("provider", "")).strip().lower()
+    model = str(raw.get("model", "")).strip()
+    if not provider or not model:
+        return None
+    if provider not in _VALID_PROVIDERS:
+        logger.warning("Unknown provider in profile: %r — falling back to registry", provider)
+        return None
+    api_key = str(raw.get("api_key", "")).strip()
+    base_url = str(raw.get("base_url", "")).strip() or None
+    deployment = str(raw.get("deployment", "")).strip() or None
+    api_version = str(raw.get("api_version", "")).strip() or None
+    return {
+        "provider": provider,
+        "model": model,
+        "api_key": api_key,
+        "base_url": base_url,
+        "deployment": deployment,
+        "api_version": api_version,
+    }
+
+
 def _resolve_session_id(request: ChatRequest) -> str:
     if request.session_id:
         return request.session_id.strip()
@@ -333,10 +367,8 @@ async def chat_completions(
     http_request: Request,
     daytona_manager: DaytonaSessionManager = Depends(get_daytona_session_manager),
 ):
-    resolved_model = _resolve_model_id(request.model)
     session_id = _resolve_session_id(request)
     file_ids = _extract_file_ids(request)
-    user_api_keys = _extract_user_api_keys(request)
     backend = daytona_manager.get_backend(session_id)
 
     source_records = None
@@ -351,9 +383,26 @@ async def chat_completions(
             file_ids=file_ids,
         )
 
-    registry = {spec.id: spec for spec in get_model_registry()}
-    spec = registry[resolved_model]
-    model = build_chat_model(spec.provider, spec.model, api_keys=user_api_keys)
+    profile = _extract_profile(request)
+    if profile:
+        # Profile path: bypass registry; build model directly from profile config
+        resolved_model = profile["model"]
+        model = build_chat_model(
+            profile["provider"],
+            profile["model"],
+            api_keys={"api_key": profile["api_key"]},
+            base_url=profile["base_url"],
+            api_version=profile["api_version"],
+            deployment=profile["deployment"],
+        )
+    else:
+        # Registry path: existing behaviour unchanged
+        resolved_model = _resolve_model_id(request.model)
+        user_api_keys = _extract_user_api_keys(request)
+        registry = {spec.id: spec for spec in get_model_registry()}
+        spec = registry[resolved_model]
+        model = build_chat_model(spec.provider, spec.model, api_keys=user_api_keys)
+
     agent = create_ethos_agent(model=model, backend=backend)
 
     logger.info(
@@ -427,14 +476,27 @@ async def chat_completions(
 
 @router.post("/tasks/title")
 async def generate_title(request: ChatRequest):
-    resolved_model = _resolve_model_id(request.model)
-    user_api_keys = _extract_user_api_keys(request)
+    profile = _extract_profile(request)
     try:
-        result = await generate_title_task(
-            model_id=resolved_model,
-            messages=request.messages,
-            api_keys=user_api_keys,
-        )
+        if profile:
+            result = await generate_title_task(
+                model_id=profile["model"],
+                messages=request.messages,
+                api_keys={"api_key": profile["api_key"]},
+                profile_provider=profile["provider"],
+                profile_model=profile["model"],
+                profile_base_url=profile["base_url"],
+                profile_api_version=profile["api_version"],
+                profile_deployment=profile["deployment"],
+            )
+        else:
+            resolved_model = _resolve_model_id(request.model)
+            user_api_keys = _extract_user_api_keys(request)
+            result = await generate_title_task(
+                model_id=resolved_model,
+                messages=request.messages,
+                api_keys=user_api_keys,
+            )
     except Exception:
         logger.exception("Title generation failed")
         return {"title": fallback_title(request.messages)}
@@ -445,14 +507,27 @@ async def generate_title(request: ChatRequest):
 
 @router.post("/tasks/follow-ups")
 async def generate_follow_ups(request: ChatRequest):
-    resolved_model = _resolve_model_id(request.model)
-    user_api_keys = _extract_user_api_keys(request)
+    profile = _extract_profile(request)
     try:
-        result = await generate_follow_ups_task(
-            model_id=resolved_model,
-            messages=request.messages,
-            api_keys=user_api_keys,
-        )
+        if profile:
+            result = await generate_follow_ups_task(
+                model_id=profile["model"],
+                messages=request.messages,
+                api_keys={"api_key": profile["api_key"]},
+                profile_provider=profile["provider"],
+                profile_model=profile["model"],
+                profile_base_url=profile["base_url"],
+                profile_api_version=profile["api_version"],
+                profile_deployment=profile["deployment"],
+            )
+        else:
+            resolved_model = _resolve_model_id(request.model)
+            user_api_keys = _extract_user_api_keys(request)
+            result = await generate_follow_ups_task(
+                model_id=resolved_model,
+                messages=request.messages,
+                api_keys=user_api_keys,
+            )
     except Exception:
         logger.exception("Follow-up generation failed")
         return {"follow_ups": []}

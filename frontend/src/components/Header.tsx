@@ -1,27 +1,24 @@
 import { ChevronDown, Ellipsis, Moon, Share2, SunMedium, UsersRound } from "lucide-react";
-import type { ModelInfo, ChatThread } from "../types";
+import type { ChatThread, ProviderProfile } from "../types";
 import { getModeConfig } from "../constants";
 
 export default function Header({
   thread,
-  selectedModelId,
-  models,
-  loadingModels,
-  onModelChange,
+  profiles,
+  activeProfileId,
+  onProfileChange,
   theme,
   onToggleTheme,
   showConversationActions,
 }: {
   thread: ChatThread | null;
-  selectedModelId: string;
-  models: ModelInfo[];
-  loadingModels: boolean;
-  onModelChange: (modelId: string) => void;
+  profiles: ProviderProfile[];
+  activeProfileId: string;
+  onProfileChange: (profileId: string) => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
   showConversationActions: boolean;
 }) {
-  const activeModel = thread?.model || selectedModelId || models[0]?.id || "";
   const mode = thread?.mode ?? "build";
   const modeConfig = getModeConfig(mode);
 
@@ -80,25 +77,24 @@ export default function Header({
           )}
         </button>
 
-        {loadingModels ? (
-          <div className="px-2 text-[10px] text-[var(--text-faint)] sm:text-xs">Loading...</div>
-        ) : models.length > 0 ? (
+        {profiles.length > 0 ? (
           <div className="relative min-w-[100px] sm:min-w-[140px]">
             <select
-              value={activeModel}
-              onChange={(e) => onModelChange(e.target.value)}
+              value={activeProfileId}
+              onChange={(e) => onProfileChange(e.target.value)}
               className="w-full appearance-none rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] py-1 pl-2.5 pr-6 text-[10px] text-[var(--text-secondary)] outline-none transition-all hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] cursor-pointer sm:py-1.5 sm:pl-3 sm:text-xs"
+              style={{ colorScheme: "inherit" }}
             >
-              {models.map((m) => (
-                <option key={m.id} value={m.id} className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">
-                  {m.id}
+              {profiles.map((p) => (
+                <option key={p.id} value={p.id} className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">
+                  {p.name || p.model}
                 </option>
               ))}
             </select>
             <ChevronDown size={10} strokeWidth={1.8} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
           </div>
         ) : (
-          <span className="text-xs text-[var(--danger)]">No models available</span>
+          <span className="text-xs text-[var(--text-faint)]">No profiles</span>
         )}
       </div>
     </div>

@@ -84,6 +84,10 @@ class ModelSpec:
     id: str
     provider: str
     model: str
+    base_url: str | None = None
+    api_version: str | None = None
+    deployment: str | None = None
+    extra_headers: dict[str, str] | None = None
 
 
 @dataclass(frozen=True)
@@ -115,38 +119,55 @@ def build_chat_model(
     model_name: str,
     *,
     api_keys: Mapping[str, str] | None = None,
+    base_url: str | None = None,
+    api_version: str | None = None,
+    deployment: str | None = None,
 ) -> BaseChatModel:
     """Build a chat model from provider id and model name (init_chat_model style)."""
     provider = provider.strip().lower()
     provider = PROVIDER_ALIASES.get(provider, provider)
     logger.info("Building chat model (provider=%s, model=%s)", provider, model_name)
-    request_api_key = resolve_request_api_key(provider, api_keys)
+
+    # Per-request API key (from profile or legacy user_api_keys)
+    request_api_key = ""
+    if api_keys:
+        # Profile path sends {"api_key": "..."}, legacy sends {"openrouter": "...", ...}
+        direct = api_keys.get("api_key", "")
+        request_api_key = direct.strip() if direct else resolve_request_api_key(provider, api_keys)
+
+    # openai_compatible: arbitrary base_url from profile (required)
+    if provider == "openai_compatible":
+        if not base_url:
+            raise ValueError("openai_compatible provider requires base_url")
+        kwargs: dict[str, Any] = {"base_url": base_url, "temperature": 0.0}
+        if request_api_key:
+            kwargs["api_key"] = request_api_key
+        return init_chat_model(f"openai:{model_name}", **kwargs)
 
     if provider in OPENAI_COMPATIBLE_PROVIDERS:
         conf = OPENAI_COMPATIBLE_PROVIDERS[provider]
-        base_url = os.getenv(conf["base_url_env"], conf["base_url"])
+        resolved_base = base_url or os.getenv(conf["base_url_env"], conf["base_url"])
         api_key = request_api_key or os.getenv(conf["api_key_env"], "")
-        kwargs: dict[str, str | float] = {
-            "base_url": base_url,
-            "temperature": 0.0,
-        }
+        kwargs = {"base_url": resolved_base, "temperature": 0.0}
         if api_key:
             kwargs["api_key"] = api_key
         return init_chat_model(f"openai:{model_name}", **kwargs)
 
     if provider == "azure_openai":
-        api_version = (
-            os.getenv("AZURE_OPENAI_API_VERSION")
+        resolved_version = (
+            api_version
+            or os.getenv("AZURE_OPENAI_API_VERSION")
             or os.getenv("OPENAI_API_VERSION")
             or "2024-12-01-preview"
         )
-        kwargs: dict[str, str | float] = {
-            "temperature": 0.0,
-            "api_version": api_version,
-        }
+        kwargs = {"temperature": 0.0, "api_version": resolved_version}
+        if base_url:
+            kwargs["azure_endpoint"] = base_url
+        if deployment:
+            kwargs["azure_deployment"] = deployment
         if request_api_key:
             kwargs["api_key"] = request_api_key
-        return init_chat_model(f"{provider}:{model_name}", **kwargs)
+        return init_chat_model(f"azure_openai:{model_name}", **kwargs)
 
     kwargs = {"temperature": 0.0}
     if request_api_key:

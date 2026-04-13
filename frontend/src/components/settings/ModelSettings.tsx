@@ -33,9 +33,10 @@ export default function ModelSettings() {
             value={defaultModel}
             onChange={(e) => setDefaultModel(e.target.value)}
             className="w-full rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] px-3 py-2 text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--accent)]"
+            style={{ colorScheme: "inherit" }}
           >
             {MODELS.map((model) => (
-              <option key={model.id} value={model.id}>
+              <option key={model.id} value={model.id} className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">
                 {model.label}
               </option>
             ))}
@@ -55,9 +56,10 @@ export default function ModelSettings() {
             value={defaultMode}
             onChange={(e) => setDefaultMode(e.target.value)}
             className="w-full rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] px-3 py-2 text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--accent)]"
+            style={{ colorScheme: "inherit" }}
           >
             {MODES.map((mode) => (
-              <option key={mode.id} value={mode.id}>
+              <option key={mode.id} value={mode.id} className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">
                 {mode.label}
               </option>
             ))}
