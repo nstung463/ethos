@@ -72,3 +72,25 @@ def test_powershell_tool_rejects_background() -> None:
     result = tool.invoke({"command": "Get-ChildItem", "background": True})
 
     assert "background" in result.lower()
+
+
+def test_bash_blocks_network_command_in_default_mode(tmp_path):
+    from src.ai.permissions.context import build_default_permission_context
+    from src.tools.shell.bash import build_bash_tool
+
+    backend = _FakeBackend({"bash"})
+    tool = build_bash_tool(backend, permission_context=build_default_permission_context(tmp_path))
+    result = tool.invoke({"command": "curl https://example.com"})
+    assert "permission" in result.lower()
+    assert backend.calls == []
+
+
+def test_bash_allows_read_only_command_in_default_mode(tmp_path):
+    from src.ai.permissions.context import build_default_permission_context
+    from src.tools.shell.bash import build_bash_tool
+
+    backend = _FakeBackend({"bash"})
+    tool = build_bash_tool(backend, permission_context=build_default_permission_context(tmp_path))
+    result = tool.invoke({"command": "pwd"})
+    assert result == "ok"
+    assert len(backend.calls) == 1
