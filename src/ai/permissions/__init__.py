@@ -11,6 +11,7 @@ from src.ai.permissions.types import (
 from src.ai.permissions.context import build_default_permission_context
 from src.ai.permissions.rules import find_matching_rule
 from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.filesystem_policy import FilesystemPolicy
 
 __all__ = [
     "PermissionBehavior",
@@ -24,4 +25,5 @@ __all__ = [
     "build_default_permission_context",
     "find_matching_rule",
     "PermissionEvaluator",
+    "FilesystemPolicy",
 ]
