@@ -7,6 +7,7 @@ from src.ai.permissions.rules import find_matching_rule
 from src.ai.permissions.types import (
     PermissionBehavior,
     PermissionDecision,
+    PermissionMode,
     PermissionRule,
     PermissionSource,
     PermissionSubject,
@@ -15,7 +16,7 @@ from src.ai.permissions.types import (
 
 def test_build_default_permission_context_uses_workspace_root(tmp_path):
     context = build_default_permission_context(workspace_root=tmp_path)
-    assert context.mode.value == "default"
+    assert context.mode is PermissionMode.DEFAULT
     assert tmp_path.resolve() in context.working_directories
 
 
