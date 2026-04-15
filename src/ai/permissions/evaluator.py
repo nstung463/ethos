@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from src.ai.permissions.rules import find_matching_rule
+from src.ai.permissions.rules import _SOURCE_PRECEDENCE, find_matching_rule
 from src.ai.permissions.types import (
     PermissionBehavior,
     PermissionContext,
     PermissionDecision,
     PermissionMode,
+    PermissionRule,
     PermissionSubject,
 )
 
@@ -91,9 +92,7 @@ class PermissionEvaluator:
         rules: tuple,
         subject: PermissionSubject,
         behavior: PermissionBehavior,
-    ) -> object | None:
-        """Find highest-precedence tool-wide (matcher=None) rule."""
-        from src.ai.permissions.rules import _SOURCE_PRECEDENCE
+    ) -> PermissionRule | None:
         matches = [
             r for r in rules
             if r.subject is subject and r.behavior is behavior and r.matcher is None
