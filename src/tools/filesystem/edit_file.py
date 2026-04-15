@@ -5,6 +5,9 @@ from pathlib import Path
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
+from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.filesystem_policy import FilesystemPolicy
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
 from src.tools.filesystem._sandbox import resolve
 
 
@@ -48,12 +51,26 @@ def _edit_file(root: Path, path: str, old_string: str, new_string: str, replace_
     return f"Edited '{path}': replaced {replaced} occurrence(s)."
 
 
-def build_edit_file_tool(root: Path) -> StructuredTool:
+def build_edit_file_tool(root: Path, permission_context: PermissionContext | None = None) -> StructuredTool:
+    policy = FilesystemPolicy()
+    evaluator = PermissionEvaluator()
+
+    def _tool(path: str, old_string: str, new_string: str, replace_all: bool = False) -> str:
+        target = resolve(root, path)
+        if permission_context is not None:
+            decision = evaluator.evaluate(
+                context=permission_context,
+                subject=PermissionSubject.EDIT,
+                candidate=path,
+                policy_decision=policy.check_edit(context=permission_context, target=target),
+            )
+            if decision.behavior is not PermissionBehavior.ALLOW:
+                return f"Permission {decision.behavior.value}: {decision.reason}"
+        return _edit_file(root, path, old_string, new_string, replace_all)
+
     return StructuredTool.from_function(
         name="edit_file",
-        func=lambda path, old_string, new_string, replace_all=False: _edit_file(
-            root, path, old_string, new_string, replace_all
-        ),
+        func=_tool,
         description=(
             "Replace an exact string in a file. "
             "You MUST read the file first. "
