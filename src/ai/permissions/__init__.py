@@ -12,6 +12,7 @@ from src.ai.permissions.context import build_default_permission_context
 from src.ai.permissions.rules import find_matching_rule
 from src.ai.permissions.evaluator import PermissionEvaluator
 from src.ai.permissions.filesystem_policy import FilesystemPolicy
+from src.ai.permissions.shell_policy import ShellPolicy
 
 __all__ = [
     "PermissionBehavior",
@@ -26,4 +27,5 @@ __all__ = [
     "find_matching_rule",
     "PermissionEvaluator",
     "FilesystemPolicy",
+    "ShellPolicy",
 ]
