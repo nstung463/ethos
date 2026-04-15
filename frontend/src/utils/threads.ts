@@ -7,6 +7,7 @@ export function createId(prefix: string) {
 export function createEmptyThread(model = "", mode: ComposerMode = "build"): ChatThread {
   return {
     id: createId("chat"),
+    remoteId: undefined,
     title: "New conversation",
     model,
     mode,

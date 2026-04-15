@@ -1,9 +1,9 @@
-# tests/tools/filesystem/test_glob.py
+﻿# tests/tools/filesystem/test_glob.py
 """Tests for glob tool."""
 from __future__ import annotations
 
 from pathlib import Path
-from src.tools.filesystem.glob import build_glob_tool
+from src.ai.tools.filesystem.glob import build_glob_tool
 
 
 def test_glob_finds_matching_files(workspace: Path) -> None:
@@ -36,6 +36,7 @@ def test_glob_nonexistent_path(workspace: Path) -> None:
     tool = build_glob_tool(workspace)
     result = tool.invoke({"pattern": "*.py", "path": "nope"})
     assert "does not exist" in result
+
 
 
 def test_glob_hides_denied_paths(workspace: Path) -> None:

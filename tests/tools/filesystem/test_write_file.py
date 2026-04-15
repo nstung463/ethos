@@ -1,10 +1,10 @@
-# tests/tools/filesystem/test_write_file.py
+﻿# tests/tools/filesystem/test_write_file.py
 """Tests for write_file tool."""
 from __future__ import annotations
 
 import pytest
 from pathlib import Path
-from src.tools.filesystem.write_file import build_write_file_tool
+from src.ai.tools.filesystem.write_file import build_write_file_tool
 
 
 def test_write_creates_new_file(workspace: Path) -> None:
@@ -36,6 +36,7 @@ def test_write_rejects_traversal(workspace: Path) -> None:
     tool = build_write_file_tool(workspace)
     with pytest.raises(PermissionError):
         tool.invoke({"path": "../escape.txt", "content": "bad"})
+
 
 
 def test_write_requires_permission_in_default_mode(workspace: Path) -> None:

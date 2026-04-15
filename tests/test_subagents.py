@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from types import SimpleNamespace
 from typing import Any
@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 
-from src.subagents import build_task_tool
+from src.ai.agents.subagents import build_task_tool
 
 
 class _FakeRunnable:
@@ -38,7 +38,7 @@ def test_task_tool_filters_private_state_and_returns_tool_message(monkeypatch: p
         create_agent_calls.append(kwargs)
         return fake_runnable
 
-    monkeypatch.setattr("src.subagents.create_agent", fake_create_agent)
+    monkeypatch.setattr("src.ai.agents.subagents.create_agent", fake_create_agent)
 
     task_tool = build_task_tool(
         model=object(),  # type: ignore[arg-type]
@@ -94,7 +94,7 @@ async def test_task_tool_async_path_matches_sync_contract(monkeypatch: pytest.Mo
         }
     )
 
-    monkeypatch.setattr("src.subagents.create_agent", lambda **_: fake_runnable)
+    monkeypatch.setattr("src.ai.agents.subagents.create_agent", lambda **_: fake_runnable)
 
     task_tool = build_task_tool(
         model=object(),  # type: ignore[arg-type]
@@ -123,7 +123,7 @@ async def test_task_tool_async_path_matches_sync_contract(monkeypatch: pytest.Mo
 
 def test_task_tool_rejects_unknown_subagent(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.subagents.create_agent",
+        "src.ai.agents.subagents.create_agent",
         lambda **_: _FakeRunnable({"messages": [AIMessage(content="unused")]}),
     )
     task_tool = build_task_tool(
@@ -150,7 +150,7 @@ def test_task_tool_rejects_unknown_subagent(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_task_tool_requires_tool_call_id(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "src.subagents.create_agent",
+        "src.ai.agents.subagents.create_agent",
         lambda **_: _FakeRunnable({"messages": [AIMessage(content="unused")]}),
     )
     task_tool = build_task_tool(
@@ -171,3 +171,4 @@ def test_task_tool_requires_tool_call_id(monkeypatch: pytest.MonkeyPatch) -> Non
             subagent_type="coder",
             runtime=runtime,
         )
+

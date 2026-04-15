@@ -49,6 +49,7 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
 
   return {
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
+    remoteId: typeof thread.remoteId === "string" ? thread.remoteId : undefined,
     title: typeof thread.title === "string" ? thread.title : "New conversation",
     model: typeof thread.model === "string" ? thread.model : "",
     profileId: typeof thread.profileId === "string" ? thread.profileId : undefined,

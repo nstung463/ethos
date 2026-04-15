@@ -1,10 +1,10 @@
-# tests/tools/filesystem/test_sandbox.py
+﻿# tests/tools/filesystem/test_sandbox.py
 """Tests for path sandboxing in _sandbox.py."""
 from __future__ import annotations
 
 import pytest
 from pathlib import Path
-from src.tools.filesystem._sandbox import resolve
+from src.ai.tools.filesystem._sandbox import resolve
 
 
 def test_resolve_relative_path(workspace: Path) -> None:
@@ -33,3 +33,4 @@ def test_resolve_rejects_absolute_escape(workspace: Path) -> None:
 def test_resolve_dot_stays_at_root(workspace: Path) -> None:
     result = resolve(workspace, ".")
     assert result == workspace
+

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from src.backends.protocol import ExecuteResponse
 from src.backends.sandbox import BaseSandbox
@@ -29,7 +29,7 @@ class _FakeBackend(BaseSandbox):
 
 
 def test_bash_tool_wraps_command_for_bash() -> None:
-    from src.tools.shell.bash import build_bash_tool
+    from src.ai.tools.shell.bash import build_bash_tool
 
     backend = _FakeBackend({"bash"})
     tool = build_bash_tool(backend)
@@ -41,7 +41,7 @@ def test_bash_tool_wraps_command_for_bash() -> None:
 
 
 def test_bash_tool_rejects_unsupported_backend() -> None:
-    from src.tools.shell.bash import build_bash_tool
+    from src.ai.tools.shell.bash import build_bash_tool
 
     tool = build_bash_tool(_FakeBackend({"powershell"}))
 
@@ -51,7 +51,7 @@ def test_bash_tool_rejects_unsupported_backend() -> None:
 
 
 def test_powershell_tool_encodes_command() -> None:
-    from src.tools.shell.powershell import build_powershell_tool
+    from src.ai.tools.shell.powershell import build_powershell_tool
 
     backend = _FakeBackend({"powershell"})
     tool = build_powershell_tool(backend)
@@ -65,7 +65,7 @@ def test_powershell_tool_encodes_command() -> None:
 
 
 def test_powershell_tool_rejects_background() -> None:
-    from src.tools.shell.powershell import build_powershell_tool
+    from src.ai.tools.shell.powershell import build_powershell_tool
 
     tool = build_powershell_tool(_FakeBackend({"powershell"}))
 
@@ -74,9 +74,10 @@ def test_powershell_tool_rejects_background() -> None:
     assert "background" in result.lower()
 
 
+
 def test_bash_blocks_network_command_in_default_mode(tmp_path):
     from src.ai.permissions.context import build_default_permission_context
-    from src.tools.shell.bash import build_bash_tool
+    from src.ai.tools.shell.bash import build_bash_tool
 
     backend = _FakeBackend({"bash"})
     tool = build_bash_tool(backend, permission_context=build_default_permission_context(tmp_path))
@@ -87,7 +88,7 @@ def test_bash_blocks_network_command_in_default_mode(tmp_path):
 
 def test_bash_allows_read_only_command_in_default_mode(tmp_path):
     from src.ai.permissions.context import build_default_permission_context
-    from src.tools.shell.bash import build_bash_tool
+    from src.ai.tools.shell.bash import build_bash_tool
 
     backend = _FakeBackend({"bash"})
     tool = build_bash_tool(backend, permission_context=build_default_permission_context(tmp_path))

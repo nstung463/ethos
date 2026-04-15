@@ -104,6 +104,12 @@ def setup_logging() -> None:
                 "level": log_level,
                 "handlers": ["console", "app_file", "error_file"],
             },
+            "loggers": {
+                "watchfiles.main": {
+                    "level": "WARNING",
+                    "propagate": False,
+                },
+            },
         }
     )
 

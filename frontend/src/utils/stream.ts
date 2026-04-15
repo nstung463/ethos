@@ -1,5 +1,6 @@
 import { API_BASE_URL } from "../constants";
 import type { Attachment, Message, ProviderProfile, StreamChunk } from "../types";
+import { authFetch } from "./auth";
 import { toApiMessages } from "./threads";
 
 function buildMetadata(profile: ProviderProfile) {
@@ -16,17 +17,32 @@ function buildMetadata(profile: ProviderProfile) {
 }
 
 export async function fetchModels(signal?: AbortSignal) {
-  const response = await fetch(`${API_BASE_URL}/v1/models`, { signal });
+  const response = await authFetch(`${API_BASE_URL}/v1/models`, { signal });
   if (!response.ok) throw new Error(`Failed to load models (${response.status})`);
   const payload = (await response.json()) as { data?: Array<{ id: string; object: string }> };
   return payload.data ?? [];
+}
+
+export async function createRemoteThread(signal?: AbortSignal): Promise<string> {
+  const response = await authFetch(`${API_BASE_URL}/v1/threads`, {
+    method: "POST",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to create thread (${response.status})`);
+  }
+  const payload = (await response.json()) as { id?: string };
+  if (!payload.id) {
+    throw new Error("Thread ID missing from server response");
+  }
+  return payload.id;
 }
 
 export async function streamChat({
   model,
   messages,
   modeInstruction,
-  sessionId,
+  threadId,
   fileIds,
   profile,
   signal,
@@ -36,21 +52,21 @@ export async function streamChat({
   model: string;
   messages: Message[];
   modeInstruction: string;
-  sessionId: string;
+  threadId: string;
   fileIds: string[];
   profile: ProviderProfile;
   signal: AbortSignal;
   onContent: (chunk: string) => void;
   onReasoning: (chunk: string) => void;
 }) {
-  const response = await fetch(`${API_BASE_URL}/v1/chat/completions`, {
+  const response = await authFetch(`${API_BASE_URL}/v1/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
       messages: toApiMessages(messages, modeInstruction),
       stream: true,
-      session_id: sessionId,
+      thread_id: threadId,
       file_ids: fileIds,
       metadata: buildMetadata(profile),
     }),
@@ -92,7 +108,7 @@ export async function uploadManagedFile(file: File, signal?: AbortSignal): Promi
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_BASE_URL}/api/files/`, {
+  const response = await authFetch(`${API_BASE_URL}/api/files/`, {
     method: "POST",
     body: formData,
     signal,
@@ -132,7 +148,7 @@ async function postTask<T>(
     signal?: AbortSignal;
   },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await authFetch(`${API_BASE_URL}${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({

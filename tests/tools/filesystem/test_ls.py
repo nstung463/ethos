@@ -1,9 +1,9 @@
-# tests/tools/filesystem/test_ls.py
+﻿# tests/tools/filesystem/test_ls.py
 """Tests for ls tool."""
 from __future__ import annotations
 
 from pathlib import Path
-from src.tools.filesystem.ls import build_ls_tool
+from src.ai.tools.filesystem.ls import build_ls_tool
 
 
 def test_ls_root_shows_files_and_dirs(workspace: Path) -> None:
@@ -43,3 +43,4 @@ def test_ls_single_file(workspace: Path) -> None:
     tool = build_ls_tool(workspace)
     result = tool.invoke({"path": "solo.txt"})
     assert "solo.txt" in result
+

@@ -1,13 +1,13 @@
-"""Ethos CLI entry point.
+﻿"""Ethos CLI entry point.
 
 Modes:
-  python ethos.py               — local pathlib mode (default)
-  python ethos.py --sandbox     — LocalSandbox mode (subprocess + pathlib via shell)
-  python ethos.py --daytona     — Daytona remote sandbox mode
-  python ethos.py --open-terminal — OpenTerminal HTTP backend mode
+  python ethos.py               â€” local pathlib mode (default)
+  python ethos.py --sandbox     â€” LocalSandbox mode (subprocess + pathlib via shell)
+  python ethos.py --daytona     â€” Daytona remote sandbox mode
+  python ethos.py --open-terminal â€” OpenTerminal HTTP backend mode
 
 Or as a LangGraph deployment:
-  langgraph dev                — exposes the graph for LangGraph Studio
+  langgraph dev                â€” exposes the graph for LangGraph Studio
 """
 
 import argparse
@@ -26,7 +26,7 @@ logger = get_logger(__name__)
 
 def _build_agent(mode: str):
     """Build the agent in the requested mode."""
-    from src.graph import create_ethos_agent
+    from src.ai.agents.ethos import create_ethos_agent
     logger.info("Building agent in mode=%s", mode)
 
     if mode == "daytona":
@@ -95,14 +95,14 @@ def main() -> None:
 
     with sandbox_ctx as backend:
         if mode == "daytona":
-            from src.graph import create_ethos_agent
+            from src.ai.agents.ethos import create_ethos_agent
 
             agent = create_ethos_agent(backend=backend)
             logger.info("Daytona backend ready (sandbox_id=%s)", backend.id)
         else:
             agent = _build_agent(mode)
 
-        print(f"Ethos AI Agent [{mode} mode] — type 'exit' to quit\n")
+        print(f"Ethos AI Agent [{mode} mode] â€” type 'exit' to quit\n")
         thread_id = str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
 
@@ -134,7 +134,7 @@ def main() -> None:
 
 # Graph exported for langgraph dev / LangGraph Studio
 def create_graph():
-    from src.graph import create_ethos_agent
+    from src.ai.agents.ethos import create_ethos_agent
     return create_ethos_agent()
 
 graph = create_graph()
@@ -142,3 +142,4 @@ graph = create_graph()
 
 if __name__ == "__main__":
     main()
+

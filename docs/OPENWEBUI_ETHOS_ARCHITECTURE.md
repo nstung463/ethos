@@ -1,6 +1,8 @@
 # OpenWebUI + Ethos Architecture
 
-This document explains the current integration boundary between OpenWebUI, Ethos API, and Open Terminal.
+> **Status:** The product UI is now the **Ethos frontend** in [`frontend/`](../frontend/). This document remains as a reference for OpenWebUI-shaped API compatibility and for anyone still comparing that integration model.
+
+This document explains the integration boundary between OpenWebUI, Ethos API, and Open Terminal (historical / alternative UI).
 
 It exists to answer four questions quickly:
 
