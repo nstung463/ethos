@@ -14,6 +14,7 @@ from src.ai.permissions.types import (
 
 
 def _suggested_mode(subject: PermissionSubject) -> str:
+    """Return the permission mode string to suggest for a filesystem subject (filesystem subjects only)."""
     if subject is PermissionSubject.EDIT:
         return PermissionMode.ACCEPT_EDITS.value
     return PermissionMode.BYPASS_PERMISSIONS.value
@@ -61,10 +62,11 @@ def permission_error(
             "subject": subject.value,
             "path": path,
             "suggested_mode": _suggested_mode(subject),
+            "suggestions": [s.value for s in (decision.suggestions or [])],
         })
         if user_decision.get("approved", False):
             return None
         return "Permission denied by user."
 
     # DENY — explicit policy decision, no human loop needed
-    return f"Permission deny: {decision.reason}"
+    return f"Permission denied: {decision.reason}"

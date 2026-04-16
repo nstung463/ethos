@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pathlib import Path
+from unittest.mock import patch
 from src.ai.tools.filesystem.write_file import build_write_file_tool
 
 
@@ -40,7 +41,6 @@ def test_write_rejects_traversal(workspace: Path) -> None:
 
 
 def test_write_requires_permission_in_default_mode(workspace: Path) -> None:
-    from unittest.mock import patch
     from src.ai.permissions.context import build_default_permission_context
     tool = build_write_file_tool(workspace, permission_context=build_default_permission_context(workspace))
 
@@ -59,9 +59,6 @@ def test_write_allowed_in_accept_edits_mode(workspace: Path) -> None:
     tool = build_write_file_tool(workspace, permission_context=build_default_permission_context(workspace, mode=PermissionMode.ACCEPT_EDITS))
     result = tool.invoke({"path": "ok.txt", "content": "hello"})
     assert "written" in result.lower()
-
-
-from unittest.mock import patch
 
 
 def test_write_file_calls_interrupt_not_string_on_ask(workspace: Path) -> None:
@@ -83,6 +80,10 @@ def test_write_file_calls_interrupt_not_string_on_ask(workspace: Path) -> None:
 
     assert len(interrupted_payloads) == 1
     assert interrupted_payloads[0]["behavior"] == "ask"
+    assert interrupted_payloads[0]["subject"] == "edit"
+    assert interrupted_payloads[0]["path"] == "new.txt"
+    assert "suggested_mode" in interrupted_payloads[0]
+    assert "suggestions" in interrupted_payloads[0]
     assert "denied" in result.lower()
 
 
