@@ -14,6 +14,8 @@ from src.backends.local import LocalBackend
 
 @pytest.fixture()
 def client() -> TestClient:
+    # Must use context manager: TestClient(...) as c triggers app lifespan,
+    # which sets app.state.checkpointer (required for interrupt state sharing).
     with TestClient(create_app()) as c:
         yield c
 
@@ -181,13 +183,10 @@ def test_chat_completion_uses_effective_thread_permission_context(
 
 def test_agent_uses_checkpointer_from_app_state(client, auth_headers):
     """Two requests must receive the same non-None MemorySaver instance from app.state."""
-    from unittest.mock import patch
-
-    seen: list[int] = []
+    seen: list[object] = []
 
     def _capturing_create(**kwargs):
-        checkpointer = kwargs.get("checkpointer")
-        seen.append(id(checkpointer))
+        seen.append(kwargs.get("checkpointer"))
 
         class _FakeAgent:
             async def astream_events(self, input_data, config=None, version=None):
@@ -219,9 +218,9 @@ def test_agent_uses_checkpointer_from_app_state(client, auth_headers):
 
     assert len(seen) == 2
     # Each call must have received a non-None checkpointer
-    assert seen[0] != id(None), "checkpointer must not be None — it should come from app.state"
-    assert seen[1] != id(None), "checkpointer must not be None — it should come from app.state"
-    assert seen[0] == seen[1], "Both requests must use the same MemorySaver instance from app.state"
+    assert seen[0] is not None, "checkpointer must not be None — it should come from app.state"
+    assert seen[1] is not None, "checkpointer must not be None — it should come from app.state"
+    assert seen[0] is seen[1], "Both requests must use the same MemorySaver instance"
 
 
 def test_chat_completion_allows_one_shot_permission_override_from_metadata(

@@ -75,6 +75,8 @@ def create_ethos_agent(
     all_tools = fs_tools + extra_tools + web_tools + mcp_tools + [task_tool]
     logger.debug("Agent tools prepared (count=%d)", len(all_tools))
 
+    # CLI / non-API callers get a fresh in-memory checkpointer per session.
+    # The API path always injects the shared app.state checkpointer.
     if checkpointer is None:
         checkpointer = MemorySaver()
     middleware = _build_default_middleware(root_dir)

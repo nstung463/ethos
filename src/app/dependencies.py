@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from fastapi import Depends, Header, HTTPException, Request, WebSocket
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from src.app.core.settings import get_settings
 from src.app.modules.auth.repository import AuthRepository, AuthSession, AuthUser
@@ -49,7 +50,7 @@ def get_terminal_name() -> str:
     return os.getenv("ETHOS_TERMINAL_NAME", "Ethos Sandbox")
 
 
-def get_checkpointer(request: Request):
+def get_checkpointer(request: Request) -> BaseCheckpointSaver:
     """Return the shared MemorySaver stored on app.state."""
     return request.app.state.checkpointer
 
