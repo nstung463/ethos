@@ -5,12 +5,13 @@ from __future__ import annotations
 import base64
 
 from langchain_core.tools import StructuredTool
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
 from src.ai.permissions.evaluator import PermissionEvaluator
 from src.ai.permissions.shell_policy import ShellPolicy
-from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionMode, PermissionSubject
 
 
 class PowerShellInput(BaseModel):
@@ -35,7 +36,7 @@ def _encode_powershell(command: str) -> str:
 
 
 def build_powershell_tool(
-    backend: BaseSandbox,
+    backend: SandboxProtocol,
     permission_context: PermissionContext | None = None,
 ) -> StructuredTool:
     """Build the PowerShell tool when the backend supports it."""
@@ -55,8 +56,19 @@ def build_powershell_tool(
                 candidate=command,
                 policy_decision=policy.check_powershell(context=permission_context, command=command),
             )
-            if decision.behavior is not PermissionBehavior.ALLOW:
-                return f"Permission {decision.behavior.value}: {decision.reason}"
+            if decision.behavior is PermissionBehavior.DENY:
+                return f"Permission denied: {decision.reason}"
+
+            if decision.behavior is PermissionBehavior.ASK:
+                user_decision = interrupt({
+                    "behavior": "ask",
+                    "reason": decision.reason,
+                    "subject": "powershell",
+                    "command": command,
+                    "suggested_mode": PermissionMode.BYPASS_PERMISSIONS.value,
+                })
+                if not user_decision.get("approved", False):
+                    return "Permission denied by user."
 
         encoded = _encode_powershell(command)
         wrapped = f"powershell -NoProfile -EncodedCommand {encoded}"

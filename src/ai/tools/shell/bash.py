@@ -5,12 +5,13 @@ from __future__ import annotations
 import shlex
 
 from langchain_core.tools import StructuredTool
+from langgraph.types import interrupt
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
 from src.ai.permissions.evaluator import PermissionEvaluator
 from src.ai.permissions.shell_policy import ShellPolicy
-from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionMode, PermissionSubject
 
 
 class BashInput(BaseModel):
@@ -31,7 +32,7 @@ class BashInput(BaseModel):
 
 
 def build_bash_tool(
-    backend: BaseSandbox,
+    backend: SandboxProtocol,
     permission_context: PermissionContext | None = None,
 ) -> StructuredTool:
     """Build the bash tool when the backend supports POSIX shell execution."""
@@ -51,8 +52,19 @@ def build_bash_tool(
                 candidate=command,
                 policy_decision=policy.check_bash(context=permission_context, command=command),
             )
-            if decision.behavior is not PermissionBehavior.ALLOW:
-                return f"Permission {decision.behavior.value}: {decision.reason}"
+            if decision.behavior is PermissionBehavior.DENY:
+                return f"Permission denied: {decision.reason}"
+
+            if decision.behavior is PermissionBehavior.ASK:
+                user_decision = interrupt({
+                    "behavior": "ask",
+                    "reason": decision.reason,
+                    "subject": "bash",
+                    "command": command,
+                    "suggested_mode": PermissionMode.BYPASS_PERMISSIONS.value,
+                })
+                if not user_decision.get("approved", False):
+                    return "Permission denied by user."
 
         wrapped = f"bash -lc {shlex.quote(command)}"
         result = backend.execute(wrapped, timeout=timeout)
