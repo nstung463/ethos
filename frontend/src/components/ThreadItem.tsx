@@ -1,3 +1,6 @@
+import { Ellipsis, FolderSync, PenLine, Share2, SquareArrowOutUpRight, Star, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ChatThread } from "../types";
 import { getLatestPreview } from "../utils/threads";
 
@@ -20,54 +23,230 @@ export default function ThreadItem({
   thread,
   isActive,
   onSelect,
+  onRename,
+  onToggleFavorite,
+  onMoveToProject,
   onDelete,
 }: {
   thread: ChatThread;
   isActive: boolean;
   onSelect: () => void;
+  onRename: (title: string) => void;
+  onToggleFavorite: () => void;
+  onMoveToProject: (project: string) => void;
   onDelete: () => void;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuMounted, setMenuMounted] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
+  const [menuPlacement, setMenuPlacement] = useState<"top" | "bottom">("bottom");
   const latest = thread.messages.at(-1);
   const isRunning = latest?.role === "assistant" && latest.status === "streaming";
   const hasError = thread.messages.some((m) => m.status === "error");
   const preview = getLatestPreview(thread);
+  const isFavorite = thread.isFavorite === true;
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      const clickedInsideMenu = menuRef.current?.contains(target) ?? false;
+      const clickedTrigger = menuButtonRef.current?.contains(target) ?? false;
+      if (!clickedInsideMenu && !clickedTrigger) {
+        setMenuOpen(false);
+      }
+    }
+
+    if (menuOpen) {
+      window.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => window.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
+
+  useEffect(() => {
+    let timeoutId: number | undefined;
+    if (menuOpen) {
+      setMenuVisible(false);
+      setMenuMounted(true);
+    } else {
+      setMenuVisible(false);
+      timeoutId = window.setTimeout(() => setMenuMounted(false), 180);
+    }
+    return () => {
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen || !menuMounted || !menuPosition) return;
+    const frameId = window.requestAnimationFrame(() => {
+      setMenuVisible(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [menuOpen, menuMounted, menuPosition]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+
+    function updateMenuPosition() {
+      const button = menuButtonRef.current;
+      if (!button) return;
+      const rect = button.getBoundingClientRect();
+      const estimatedMenuHeight = 260;
+      const gap = 6;
+      const shouldOpenUpward = rect.bottom + gap + estimatedMenuHeight > window.innerHeight - 8;
+      setMenuPlacement(shouldOpenUpward ? "top" : "bottom");
+      setMenuPosition({
+        top: shouldOpenUpward ? rect.top - gap : rect.bottom + gap,
+        left: rect.left + rect.width / 2,
+      });
+    }
+
+    updateMenuPosition();
+    window.addEventListener("resize", updateMenuPosition);
+    window.addEventListener("scroll", updateMenuPosition, true);
+    return () => {
+      window.removeEventListener("resize", updateMenuPosition);
+      window.removeEventListener("scroll", updateMenuPosition, true);
+    };
+  }, [menuOpen]);
+
+  function handleShare() {
+    const url = `${window.location.origin}/app/${thread.id}`;
+    void navigator.clipboard.writeText(url).catch(() => {
+      window.prompt("Copy conversation link", url);
+    });
+    setMenuOpen(false);
+  }
+
+  function handleRename() {
+    const nextTitle = window.prompt("Rename conversation", thread.title)?.trim();
+    if (nextTitle) {
+      onRename(nextTitle);
+    }
+    setMenuOpen(false);
+  }
+
+  function handleOpenInNewTab() {
+    window.open(`/app/${thread.id}`, "_blank", "noopener,noreferrer");
+    setMenuOpen(false);
+  }
+
+  function handleMoveToProject() {
+    const nextProject = window.prompt("Move to project", thread.project ?? "");
+    if (nextProject !== null) {
+      onMoveToProject(nextProject.trim());
+    }
+    setMenuOpen(false);
+  }
 
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      className={`group w-full rounded-[10px] px-3 py-2 text-left transition-colors ${
+    <div
+      className={`group relative w-full rounded-[10px] px-3 py-2 text-left transition-colors ${
         isActive
           ? "bg-[var(--surface-hover)] text-[var(--text-primary)] hover:bg-[var(--surface-hover-strong)]"
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
-      <div className="mb-0.5 flex items-center justify-between gap-2">
-        <span className="truncate text-[13px] font-medium leading-5">{thread.title}</span>
-        <div className="flex shrink-0 items-center gap-1.5">
-          {isRunning ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--success)]" /> : null}
-          {hasError && !isRunning ? <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" /> : null}
-          <span className={`text-[10px] group-hover:hidden ${isActive ? "text-[var(--text-muted)]" : "text-[var(--text-soft)]"}`}>
-            {formatTime(thread.updatedAt)}
+      <button type="button" onClick={onSelect} className="w-full text-left">
+        <div className="mb-0.5 flex items-center justify-between gap-2">
+          <span className="flex min-w-0 items-center gap-1.5">
+            {isFavorite ? <Star size={12} className="shrink-0 text-[var(--accent)]" fill="currentColor" /> : null}
+            <span className="truncate text-[13px] font-medium leading-5">{thread.title}</span>
           </span>
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDelete();
-            }}
-            className={`hidden px-1 text-[10px] transition-colors group-hover:flex cursor-pointer ${
-              isActive ? "text-[var(--text-muted)] hover:text-[var(--danger)]" : "text-[var(--text-soft)] hover:text-[var(--danger)]"
-            }`}
-            title="Delete conversation"
-          >
-            Delete
-          </button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {isRunning ? <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--success)]" /> : null}
+            {hasError && !isRunning ? <span className="h-1.5 w-1.5 rounded-full bg-[var(--danger)]" /> : null}
+            <span
+              className={`text-[10px] transition-opacity duration-150 group-hover:opacity-0 ${
+                isActive ? "text-[var(--text-muted)]" : "text-[var(--text-soft)]"
+              }`}
+            >
+              {formatTime(thread.updatedAt)}
+            </span>
+          </div>
         </div>
+        <p className={`truncate text-[11px] leading-4 ${isActive ? "text-[var(--text-muted)]" : "text-[var(--text-soft)]"}`}>
+          {preview.slice(0, 80)}
+        </p>
+      </button>
+
+      <div className="absolute right-2 top-2">
+        <button
+          ref={menuButtonRef}
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+            setMenuOpen((value) => !value);
+          }}
+          className={`flex h-6 w-6 items-center justify-center rounded-md opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
+            isActive ? "text-[var(--text-muted)] hover:bg-[var(--surface-soft)]" : "text-[var(--text-soft)] hover:bg-[var(--surface-soft)]"
+          }`}
+          title="Conversation options"
+          aria-label="Conversation options"
+        >
+          <Ellipsis size={14} />
+        </button>
+
+        {menuMounted && menuPosition
+          ? createPortal(
+              <div
+                ref={menuRef}
+                className={`fixed z-[120] min-w-[220px] -translate-x-1/2 rounded-xl border border-[var(--border-subtle)] bg-[var(--panel-elevated)] p-1 shadow-[0_8px_24px_var(--shadow-panel)] transition-all duration-180 ease-out ${
+                  menuPlacement === "bottom" ? "origin-top" : "origin-bottom"
+                } ${
+                  menuVisible
+                    ? menuPlacement === "bottom"
+                      ? "translate-y-0 scale-100 opacity-100 pointer-events-auto"
+                      : "-translate-y-full scale-100 opacity-100 pointer-events-auto"
+                    : menuPlacement === "bottom"
+                      ? "-translate-y-1 scale-95 opacity-0 pointer-events-none"
+                      : "-translate-y-[calc(100%+4px)] scale-95 opacity-0 pointer-events-none"
+                }`}
+                style={{ top: `${menuPosition.top}px`, left: `${menuPosition.left}px` }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <button type="button" onClick={handleShare} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                  <Share2 size={16} />
+                  <span>Share</span>
+                </button>
+                <button type="button" onClick={handleRename} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                  <PenLine size={16} />
+                  <span>Rename</span>
+                </button>
+                <button type="button" onClick={() => { onToggleFavorite(); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                  <Star size={16} />
+                  <span>{isFavorite ? "Remove from favorites" : "Add to favorites"}</span>
+                </button>
+                <button type="button" onClick={handleOpenInNewTab} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                  <SquareArrowOutUpRight size={16} />
+                  <span>Open in new tab</span>
+                </button>
+                <button type="button" onClick={handleMoveToProject} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                  <FolderSync size={16} />
+                  <span>Move to project</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onDelete();
+                    setMenuOpen(false);
+                  }}
+                  className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--danger)] hover:bg-[var(--surface-hover)]"
+                >
+                  <Trash2 size={16} />
+                  <span>Delete</span>
+                </button>
+              </div>,
+              document.body,
+            )
+          : null}
       </div>
-      <p className={`truncate text-[11px] leading-4 ${isActive ? "text-[var(--text-muted)]" : "text-[var(--text-soft)]"}`}>
-        {preview.slice(0, 80)}
-      </p>
-    </button>
+    </div>
   );
 }

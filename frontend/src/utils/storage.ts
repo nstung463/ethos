@@ -90,6 +90,8 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
     remoteId: typeof thread.remoteId === "string" ? thread.remoteId : undefined,
     title: typeof thread.title === "string" ? thread.title : "New conversation",
+    isFavorite: typeof thread.isFavorite === "boolean" ? thread.isFavorite : false,
+    project: typeof thread.project === "string" ? thread.project : "",
     model: typeof thread.model === "string" ? thread.model : "",
     profileId: typeof thread.profileId === "string" ? thread.profileId : undefined,
     backendMode:

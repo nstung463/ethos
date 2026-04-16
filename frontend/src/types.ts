@@ -94,6 +94,8 @@ export type ChatThread = {
   id: string;
   remoteId?: string;
   title: string;
+  isFavorite?: boolean;
+  project?: string;
   model: string;
   profileId?: string;
   backendMode?: "sandbox" | "local";

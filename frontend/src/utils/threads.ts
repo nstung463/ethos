@@ -9,6 +9,8 @@ export function createEmptyThread(model = "", mode: ComposerMode = "build"): Cha
     id: createId("chat"),
     remoteId: undefined,
     title: "New conversation",
+    isFavorite: false,
+    project: "",
     model,
     backendMode: "sandbox",
     localRootDir: "",
