@@ -40,11 +40,17 @@ def test_write_rejects_traversal(workspace: Path) -> None:
 
 
 def test_write_requires_permission_in_default_mode(workspace: Path) -> None:
+    from unittest.mock import patch
     from src.ai.permissions.context import build_default_permission_context
     tool = build_write_file_tool(workspace, permission_context=build_default_permission_context(workspace))
-    result = tool.invoke({"path": "blocked.txt", "content": "hello"})
+
+    def _fake_interrupt(payload):
+        return {"approved": False}
+
+    with patch("src.ai.tools.filesystem._shared.interrupt", side_effect=_fake_interrupt):
+        result = tool.invoke({"path": "blocked.txt", "content": "hello"})
     assert "permission" in result.lower()
-    assert "ask" in result.lower()
+    assert "denied" in result.lower()
 
 
 def test_write_allowed_in_accept_edits_mode(workspace: Path) -> None:
@@ -53,3 +59,45 @@ def test_write_allowed_in_accept_edits_mode(workspace: Path) -> None:
     tool = build_write_file_tool(workspace, permission_context=build_default_permission_context(workspace, mode=PermissionMode.ACCEPT_EDITS))
     result = tool.invoke({"path": "ok.txt", "content": "hello"})
     assert "written" in result.lower()
+
+
+from unittest.mock import patch
+
+
+def test_write_file_calls_interrupt_not_string_on_ask(workspace: Path) -> None:
+    """In default mode, write_file must call interrupt() — not return a permission string."""
+    from src.ai.permissions.context import build_default_permission_context
+    from src.ai.tools.filesystem.write_file import build_write_file_tool
+
+    ctx = build_default_permission_context(workspace_root=workspace)
+    tool = build_write_file_tool(workspace, permission_context=ctx)
+
+    interrupted_payloads: list[dict] = []
+
+    def _fake_interrupt(payload):
+        interrupted_payloads.append(payload)
+        return {"approved": False}  # simulate user denying
+
+    with patch("src.ai.tools.filesystem._shared.interrupt", side_effect=_fake_interrupt):
+        result = tool.invoke({"path": "new.txt", "content": "hello"})
+
+    assert len(interrupted_payloads) == 1
+    assert interrupted_payloads[0]["behavior"] == "ask"
+    assert "denied" in result.lower()
+
+
+def test_write_file_proceeds_after_interrupt_approval(workspace: Path) -> None:
+    """If user approves via interrupt resume, write_file must write the file."""
+    from src.ai.permissions.context import build_default_permission_context
+    from src.ai.tools.filesystem.write_file import build_write_file_tool
+
+    ctx = build_default_permission_context(workspace_root=workspace)
+    tool = build_write_file_tool(workspace, permission_context=ctx)
+
+    def _fake_interrupt(payload):
+        return {"approved": True}
+
+    with patch("src.ai.tools.filesystem._shared.interrupt", side_effect=_fake_interrupt):
+        result = tool.invoke({"path": "approved.txt", "content": "hello"})
+
+    assert (workspace / "approved.txt").exists()
