@@ -71,6 +71,22 @@ class ShellPolicy:
         "Start-Process",
         "runas ",
     )
+    _CODE_EXECUTION_PREFIXES = (
+        "python ",
+        "python3 ",
+        "python\t",
+        "python3\t",
+        "node ",
+        "node\t",
+        "ruby ",
+        "ruby\t",
+        "perl ",
+        "perl\t",
+        "bash -c",
+        "sh -c",
+        "pwsh -c",
+        "pwsh -Command",
+    )
     # Markers that indicate write to file (must appear in command, not just as prefix)
     _REDIRECT_MARKERS = (" >", " >>", ">", ">>")
     _WRITE_COMMAND_PREFIXES = (
@@ -100,6 +116,10 @@ class ShellPolicy:
         # Destructive check
         if stripped.startswith(self._DESTRUCTIVE_PREFIXES):
             return "destructive"
+
+        # Code execution: interpreter invocations are conservative regardless of mode
+        if stripped.startswith(self._CODE_EXECUTION_PREFIXES):
+            return "code_execution"
 
         # Read-only check (before write checks)
         if stripped.startswith(self._READ_ONLY_PREFIXES):
@@ -146,6 +166,13 @@ class ShellPolicy:
             )
 
         if classification in ("networked", "destructive"):
+            return PermissionDecision(
+                behavior=PermissionBehavior.ASK,
+                reason=f"{shell_name} command classified as {classification}",
+                metadata=MappingProxyType({"classification": classification}),
+            )
+
+        if classification == "code_execution":
             return PermissionDecision(
                 behavior=PermissionBehavior.ASK,
                 reason=f"{shell_name} command classified as {classification}",

@@ -78,3 +78,28 @@ def test_powershell_read_only_is_allowed(policy, default_context):
     decision = policy.check_powershell(context=default_context, command="Get-ChildItem")
     assert decision.behavior is PermissionBehavior.ALLOW
     assert decision.metadata["classification"] == "read_only"
+
+
+def test_python_script_asks_in_default_mode(policy, default_context):
+    decision = policy.check_bash(context=default_context, command="python script.py")
+    assert decision.behavior is PermissionBehavior.ASK
+    assert decision.metadata["classification"] == "code_execution"
+
+
+def test_python_with_c_flag_asks_in_default_mode(policy, default_context):
+    decision = policy.check_bash(context=default_context, command="python3 -c 'import os; os.remove(\"x\")'")
+    assert decision.behavior is PermissionBehavior.ASK
+    assert decision.metadata["classification"] == "code_execution"
+
+
+def test_node_asks_in_default_mode(policy, default_context):
+    decision = policy.check_bash(context=default_context, command="node index.js")
+    assert decision.behavior is PermissionBehavior.ASK
+    assert decision.metadata["classification"] == "code_execution"
+
+
+def test_code_execution_still_asks_in_accept_edits_mode(policy, accept_edits_context):
+    # code_execution must NOT be silently allowed by accept_edits — it is not a simple file write
+    decision = policy.check_bash(context=accept_edits_context, command="python build.py")
+    assert decision.behavior is PermissionBehavior.ASK
+    assert decision.metadata["classification"] == "code_execution"
