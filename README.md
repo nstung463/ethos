@@ -8,7 +8,7 @@
 
 ## Preview
 
-![Ethos Landing Page](docs/assets/landing-page.png)
+![Ethos Landing Page](frontend/public/landing-page.png)
 
 ---
 
