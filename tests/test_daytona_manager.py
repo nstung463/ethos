@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from src.api.services.daytona_manager import DaytonaSessionManager
+from src.app.services.daytona_manager import DaytonaSessionManager
 
 
 class _Backend:
@@ -23,10 +23,10 @@ def test_manager_reuses_backend_for_same_session(monkeypatch) -> None:
         )()
 
     monkeypatch.setattr(
-        "src.api.services.daytona_manager.get_or_create_daytona_backend",
+        "src.app.services.daytona_manager.get_or_create_daytona_backend",
         fake_get_or_create_daytona_backend,
     )
-    monkeypatch.setattr("src.api.services.daytona_manager.delete_daytona_sandbox", lambda *, sandbox_name: None)
+    monkeypatch.setattr("src.app.services.daytona_manager.delete_daytona_sandbox", lambda *, sandbox_name: None)
 
     manager = DaytonaSessionManager(idle_ttl_seconds=600)
 
@@ -54,13 +54,13 @@ def test_manager_expires_old_session(monkeypatch) -> None:
             },
         )()
 
-    monkeypatch.setattr("src.api.services.daytona_manager.time.time", fake_time)
+    monkeypatch.setattr("src.app.services.daytona_manager.time.time", fake_time)
     monkeypatch.setattr(
-        "src.api.services.daytona_manager.get_or_create_daytona_backend",
+        "src.app.services.daytona_manager.get_or_create_daytona_backend",
         fake_get_or_create_daytona_backend,
     )
     monkeypatch.setattr(
-        "src.api.services.daytona_manager.delete_daytona_sandbox",
+        "src.app.services.daytona_manager.delete_daytona_sandbox",
         lambda *, sandbox_name: deleted.append(sandbox_name),
     )
 

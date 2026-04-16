@@ -1,9 +1,9 @@
-# tests/tools/filesystem/test_read_file.py
+﻿# tests/tools/filesystem/test_read_file.py
 """Tests for read_file tool."""
 from __future__ import annotations
 
 from pathlib import Path
-from src.tools.filesystem.read_file import build_read_file_tool
+from src.ai.tools.filesystem.read_file import build_read_file_tool
 
 
 def test_read_file_returns_numbered_lines(workspace: Path) -> None:
@@ -60,3 +60,4 @@ def test_read_file_shows_truncation_hint(workspace: Path) -> None:
     tool = build_read_file_tool(workspace)
     result = tool.invoke({"path": "long.txt", "limit": 5})
     assert "Showing lines" in result or "offset=" in result
+

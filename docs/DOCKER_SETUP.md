@@ -1,12 +1,10 @@
 # Ethos Full Stack Docker Setup
 
-Production-ready setup: OpenWebUI (Frontend) + Ethos API + Open Terminal.
+Production-ready setup: **Ethos frontend** (`frontend/`) + Ethos API + Open Terminal.
 
 See also:
 
-- [OPENWEBUI_ETHOS_ARCHITECTURE.md](/W:/panus/ethos/docs/OPENWEBUI_ETHOS_ARCHITECTURE.md)
-
-That document explains the ownership boundary between OpenWebUI, Ethos, and Open Terminal, including managed files vs sandbox files.
+- [OPENWEBUI_ETHOS_ARCHITECTURE.md](OPENWEBUI_ETHOS_ARCHITECTURE.md) — historical notes on an older OpenWebUI-based UI; the default UI is now the Ethos app in `frontend/`.
 
 ## Quick Start
 
@@ -37,7 +35,7 @@ docker-compose up -d
 
 ### 3. Access Services
 
-- **OpenWebUI** (Frontend): http://localhost:3000
+- **Ethos frontend** (`ethos-frontend`): http://localhost:3000
 - **Ethos API**: http://localhost:8080
 - **Open Terminal API**: http://localhost:8000
 
@@ -63,10 +61,10 @@ curl http://localhost:8080/api/terminals/
 
 ## Usage
 
-### In OpenWebUI
+### In the Ethos UI
 
 1. Open http://localhost:3000
-2. Chat → Select model (should auto-detect Ethos)
+2. Select a model (loaded from Ethos `/v1/models`)
 3. Ask: "Create a file test.py with print('hello'), then run it"
 4. AI will:
    - Write file to `/home/user/test.py` (open-terminal container)
@@ -103,8 +101,7 @@ Those are different from files living inside the Open Terminal runtime filesyste
 # View Open Terminal data
 docker volume inspect ethos-open-terminal-data
 
-# View OpenWebUI data
-docker volume inspect ethos-openwebui-data
+# Ethos frontend is built into the ethos-frontend image (no separate app data volume by default)
 ```
 
 ## Logs
@@ -116,8 +113,8 @@ docker logs ethos-api -f
 # Open Terminal logs
 docker logs ethos-open-terminal -f
 
-# OpenWebUI logs
-docker logs ethos-openwebui -f
+# Ethos frontend logs
+docker logs ethos-frontend -f
 ```
 
 ## Stop & Cleanup
@@ -139,7 +136,7 @@ docker-compose down -v
 docker-compose logs
 
 # Check if ports are in use
-# Port 8000 (Open Terminal), 8080 (Ethos API), 3000 (OpenWebUI) must be free
+# Port 8000 (Open Terminal), 8080 (Ethos API), 3000 (Ethos frontend) must be free
 ```
 
 ### API Key mismatch?
@@ -155,11 +152,11 @@ docker-compose restart ethos-api open-terminal
 
 ### Frontend points to the wrong API?
 
-The OpenWebUI frontend uses `PUBLIC_*` build-time variables. If those values change, rebuild the `openwebui` image:
+The Ethos frontend uses `VITE_API_BASE_URL` at build time (see `docker-compose.yml` for `ethos-frontend`). After changing it, rebuild:
 
 ```bash
-docker compose build openwebui
-docker compose up -d openwebui
+docker compose build ethos-frontend
+docker compose up -d ethos-frontend
 ```
 
 ### Files not persisting?

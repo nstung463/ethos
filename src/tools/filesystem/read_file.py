@@ -6,6 +6,9 @@ from typing import Optional
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
+from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.filesystem_policy import FilesystemPolicy
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
 from src.tools.filesystem._sandbox import resolve
 
 DEFAULT_LIMIT = 200
@@ -59,10 +62,26 @@ def _read_file(root: Path, path: str, offset: int = 0, limit: Optional[int] = No
     return result
 
 
-def build_read_file_tool(root: Path) -> StructuredTool:
+def build_read_file_tool(root: Path, permission_context: PermissionContext | None = None) -> StructuredTool:
+    policy = FilesystemPolicy()
+    evaluator = PermissionEvaluator()
+
+    def _tool(path: str, offset: int = 0, limit: Optional[int] = None) -> str:
+        target = resolve(root, path)
+        if permission_context is not None:
+            decision = evaluator.evaluate(
+                context=permission_context,
+                subject=PermissionSubject.READ,
+                candidate=path,
+                policy_decision=policy.check_read(context=permission_context, target=target),
+            )
+            if decision.behavior is not PermissionBehavior.ALLOW:
+                return f"Permission {decision.behavior.value}: {decision.reason}"
+        return _read_file(root, path, offset, limit)
+
     return StructuredTool.from_function(
         name="read_file",
-        func=lambda path, offset=0, limit=None: _read_file(root, path, offset, limit),
+        func=_tool,
         description=(
             "Read a file's contents with line numbers. "
             "Always read a file before editing it. "

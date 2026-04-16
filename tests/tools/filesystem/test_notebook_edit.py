@@ -1,4 +1,4 @@
-"""Tests for notebook_edit tool."""
+﻿"""Tests for notebook_edit tool."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -30,7 +30,7 @@ def test_notebook_edit_replaces_cell_source(workspace: Path) -> None:
         {"type": "code", "source": "x = 1"},
         {"type": "markdown", "source": "# Header"},
     ])
-    from src.tools.filesystem.notebook_edit import build_notebook_edit_tool
+    from src.ai.tools.filesystem.notebook_edit import build_notebook_edit_tool
     tool = build_notebook_edit_tool(workspace)
     result = tool.invoke({"path": nb_path, "cell_index": 0, "new_source": "x = 99"})
     assert "edited" in result.lower()
@@ -40,14 +40,14 @@ def test_notebook_edit_replaces_cell_source(workspace: Path) -> None:
 
 def test_notebook_edit_out_of_range_index(workspace: Path) -> None:
     nb_path = _make_notebook(workspace, [{"type": "code", "source": "pass"}])
-    from src.tools.filesystem.notebook_edit import build_notebook_edit_tool
+    from src.ai.tools.filesystem.notebook_edit import build_notebook_edit_tool
     tool = build_notebook_edit_tool(workspace)
     result = tool.invoke({"path": nb_path, "cell_index": 99, "new_source": "x = 1"})
     assert "out of range" in result.lower() or "error" in result.lower()
 
 
 def test_notebook_edit_missing_file(workspace: Path) -> None:
-    from src.tools.filesystem.notebook_edit import build_notebook_edit_tool
+    from src.ai.tools.filesystem.notebook_edit import build_notebook_edit_tool
     tool = build_notebook_edit_tool(workspace)
     result = tool.invoke({"path": "ghost.ipynb", "cell_index": 0, "new_source": "x"})
     assert "does not exist" in result or "error" in result.lower()
@@ -55,7 +55,8 @@ def test_notebook_edit_missing_file(workspace: Path) -> None:
 
 def test_notebook_edit_non_notebook(workspace: Path) -> None:
     (workspace / "code.py").write_text("x = 1")
-    from src.tools.filesystem.notebook_edit import build_notebook_edit_tool
+    from src.ai.tools.filesystem.notebook_edit import build_notebook_edit_tool
     tool = build_notebook_edit_tool(workspace)
     result = tool.invoke({"path": "code.py", "cell_index": 0, "new_source": "y = 2"})
     assert "error" in result.lower() or "notebook" in result.lower()
+

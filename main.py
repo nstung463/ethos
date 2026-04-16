@@ -28,7 +28,7 @@ import os
 from pathlib import Path
 
 import uvicorn
-from src.api import create_app
+from src.app import create_app
 
 
 def main() -> None:
@@ -38,7 +38,22 @@ def main() -> None:
     project_root = Path(__file__).resolve().parent
     if reload_enabled:
         # Uvicorn requires import string when reload/workers is enabled.
-        uvicorn.run("main:create_app", host="0.0.0.0", port=port, reload=True, factory=True)
+        uvicorn.run(
+            "main:create_app",
+            host="0.0.0.0",
+            port=port,
+            reload=True,
+            factory=True,
+            reload_dirs=[str(project_root / "src"), str(project_root)],
+            reload_includes=["*.py"],
+            reload_excludes=[
+                "logs/*",
+                "*.log",
+                ".git/*",
+                ".venv/*",
+                "__pycache__/*",
+            ],
+        )
         return
 
     app = create_app()

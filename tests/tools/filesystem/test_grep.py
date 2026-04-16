@@ -1,9 +1,9 @@
-# tests/tools/filesystem/test_grep.py
+﻿# tests/tools/filesystem/test_grep.py
 """Tests for grep tool."""
 from __future__ import annotations
 
 from pathlib import Path
-from src.tools.filesystem.grep import build_grep_tool
+from src.ai.tools.filesystem.grep import build_grep_tool
 
 
 def test_grep_content_mode_returns_matching_lines(workspace: Path) -> None:
@@ -50,3 +50,4 @@ def test_grep_no_matches(workspace: Path) -> None:
     tool = build_grep_tool(workspace)
     result = tool.invoke({"pattern": "zzznomatch"})
     assert "No matches" in result
+

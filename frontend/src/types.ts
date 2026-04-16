@@ -54,6 +54,7 @@ export type Message = {
 
 export type ChatThread = {
   id: string;
+  remoteId?: string;
   title: string;
   model: string;
   profileId?: string;

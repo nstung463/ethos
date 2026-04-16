@@ -6,7 +6,15 @@ import { CHAT_SUGGESTIONS, QUICK_ACTIONS, getModeConfig } from "./constants";
 import { loadProfiles, saveProfiles } from "./utils/profiles";
 import { loadThreads, saveThreads } from "./utils/storage";
 import { createEmptyThread, createId, mergeReasoning, summarizeTitle } from "./utils/threads";
-import { fetchModels, generateFollowUps, generateTitle, streamChat, uploadManagedFile } from "./utils/stream";
+import { ensureAuthToken } from "./utils/auth";
+import {
+  createRemoteThread,
+  fetchModels,
+  generateFollowUps,
+  generateTitle,
+  streamChat,
+  uploadManagedFile,
+} from "./utils/stream";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import ChatArea from "./components/ChatArea";
@@ -67,7 +75,8 @@ function ChatWorkspace() {
   // Connectivity check — keep fetching /v1/models but don't use result for selector
   useEffect(() => {
     const controller = new AbortController();
-    fetchModels(controller.signal)
+    ensureAuthToken()
+      .then(() => fetchModels(controller.signal))
       .then((items) => {
         setStatus(items.length > 0 ? "Connected" : "Connected (no server models)");
       })
@@ -382,11 +391,20 @@ function ChatWorkspace() {
     reasoningStartRef.current = null;
 
     try {
+      const remoteThreadId = nextThread.remoteId ?? (await createRemoteThread(controller.signal));
+      if (!nextThread.remoteId) {
+        updateThread(nextThread.id, (thread) => ({
+          ...thread,
+          remoteId: remoteThreadId,
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+
       await streamChat({
         model: activeModel,
         messages: nextMessages,
         modeInstruction: modeConfig.instruction,
-        sessionId: nextThread.id,
+        threadId: remoteThreadId,
         fileIds: pendingAttachments.map((attachment) => attachment.id),
         profile: activeProfile,
         signal: controller.signal,
