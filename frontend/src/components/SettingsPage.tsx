@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
-import type { ProviderProfile, SettingsSection } from "../types";
+import type { PermissionProfile, ProviderProfile, SettingsSection } from "../types";
 import SettingsSubSidebar from "./SettingsSubSidebar";
 import GeneralSettings from "./settings/GeneralSettings";
 import AppearanceSettings from "./settings/AppearanceSettings";
@@ -15,6 +15,11 @@ export default function SettingsPage({
   profiles,
   activeProfileId,
   onProfilesSave,
+  initialSection = "general",
+  userPermissions,
+  permissionsLoading,
+  permissionsError,
+  onPermissionsSave,
 }: {
   onClose: () => void;
   theme: "dark" | "light";
@@ -22,14 +27,23 @@ export default function SettingsPage({
   profiles: ProviderProfile[];
   activeProfileId: string;
   onProfilesSave: (profiles: ProviderProfile[], activeProfileId: string) => void;
+  initialSection?: SettingsSection;
+  userPermissions: PermissionProfile | null;
+  permissionsLoading: boolean;
+  permissionsError: string;
+  onPermissionsSave: (profile: PermissionProfile) => Promise<void>;
 }) {
-  const [section, setSection] = useState<SettingsSection>("general");
+  const [section, setSection] = useState<SettingsSection>(initialSection);
   const [visible, setVisible] = useState(false);
 
   // Trigger animation on mount
   useEffect(() => {
     requestAnimationFrame(() => setVisible(true));
   }, []);
+
+  useEffect(() => {
+    setSection(initialSection);
+  }, [initialSection]);
 
   const handleClose = () => {
     setVisible(false);
@@ -59,7 +73,14 @@ export default function SettingsPage({
       case "model-settings":
         return <ModelSettings />;
       case "security":
-        return <SecuritySettings />;
+        return (
+          <SecuritySettings
+            value={userPermissions}
+            isLoading={permissionsLoading}
+            error={permissionsError}
+            onSave={onPermissionsSave}
+          />
+        );
       default:
         return <GeneralSettings />;
     }

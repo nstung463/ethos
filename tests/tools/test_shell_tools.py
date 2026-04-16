@@ -1,7 +1,7 @@
 ﻿from __future__ import annotations
 
 from src.backends.protocol import ExecuteResponse
-from src.backends.sandbox import CommandBackedBackend
+from src.backends.sandbox import BaseSandbox as CommandBackedBackend
 
 
 class _FakeBackend(CommandBackedBackend):

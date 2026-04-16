@@ -7,7 +7,7 @@ import shlex
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
 from src.ai.permissions.evaluator import PermissionEvaluator
 from src.ai.permissions.shell_policy import ShellPolicy
 from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
@@ -31,7 +31,7 @@ class BashInput(BaseModel):
 
 
 def build_bash_tool(
-    backend: BaseSandbox,
+    backend: SandboxProtocol,
     permission_context: PermissionContext | None = None,
 ) -> StructuredTool:
     """Build the bash tool when the backend supports POSIX shell execution."""

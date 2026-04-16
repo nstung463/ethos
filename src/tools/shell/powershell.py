@@ -7,7 +7,7 @@ import base64
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
 from src.ai.permissions.evaluator import PermissionEvaluator
 from src.ai.permissions.shell_policy import ShellPolicy
 from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
@@ -35,7 +35,7 @@ def _encode_powershell(command: str) -> str:
 
 
 def build_powershell_tool(
-    backend: BaseSandbox,
+    backend: SandboxProtocol,
     permission_context: PermissionContext | None = None,
 ) -> StructuredTool:
     """Build the PowerShell tool when the backend supports it."""

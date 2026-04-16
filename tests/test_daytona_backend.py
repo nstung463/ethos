@@ -5,7 +5,7 @@ import types
 
 import pytest
 
-from src.backends.daytona import DaytonaSandbox, create_daytona_sandbox, get_or_create_daytona_backend
+from src.backends.daytona import DaytonaBackend, create_daytona_sandbox, get_or_create_daytona_backend
 
 
 class _ExecResult:
@@ -75,7 +75,7 @@ def _install_fake_daytona(monkeypatch: pytest.MonkeyPatch, sandbox: _FakeSandbox
 
 def test_execute_uses_default_timeout() -> None:
     sandbox = _FakeSandbox()
-    backend = DaytonaSandbox(sandbox=sandbox, timeout=123)
+    backend = DaytonaBackend(sandbox=sandbox, timeout=123)
 
     result = backend.execute("pwd")
 
@@ -90,7 +90,7 @@ def test_execute_returns_error_response_on_exception() -> None:
             raise RuntimeError("boom")
 
     fake = types.SimpleNamespace(id="sb-2", process=_BrokenProcess())
-    backend = DaytonaSandbox(sandbox=fake)
+    backend = DaytonaBackend(sandbox=fake)
 
     result = backend.execute("ls")
 
@@ -116,7 +116,7 @@ def test_create_daytona_sandbox_yields_backend_and_cleans_up(
     monkeypatch.setenv("DAYTONA_API_KEY", "test-key")
 
     with create_daytona_sandbox(conversation_id="conv-2") as backend:
-        assert isinstance(backend, DaytonaSandbox)
+        assert isinstance(backend, DaytonaBackend)
         assert backend.id == "sb-1"
         # readiness probe should run before yielding
         assert ("echo ready", 5) in sandbox.process.calls

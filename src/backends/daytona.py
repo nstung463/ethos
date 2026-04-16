@@ -1,4 +1,4 @@
-"""Daytona sandbox backend for Ethos."""
+"""Daytona remote backend for Ethos."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from src.backends.protocol import ExecuteResponse, FileDownloadResponse, FileUploadResponse
-from src.backends.sandbox import BaseSandbox
+from src.backends.sandbox import CommandBackedBackend
 from src.logger import get_logger
 
 logger = get_logger(__name__)
 
 
-class DaytonaSandbox(BaseSandbox):
-    """Daytona remote sandbox backend."""
+class DaytonaBackend(CommandBackedBackend):
+    """Daytona remote isolated backend."""
 
     def __init__(self, *, sandbox: object, timeout: int = 30 * 60) -> None:
         self._sandbox = sandbox
@@ -94,12 +94,12 @@ class DaytonaSandbox(BaseSandbox):
 
 @dataclass(frozen=True)
 class DaytonaBackendLease:
-    backend: DaytonaSandbox
+    backend: DaytonaBackend
     sandbox_name: str
     is_new: bool
 
 
-def _run_setup_script(backend: DaytonaSandbox, setup_script_path: str) -> None:
+def _run_setup_script(backend: DaytonaBackend, setup_script_path: str) -> None:
     if not os.path.exists(setup_script_path):
         logger.warning("Setup script not found: %s", setup_script_path)
         return
@@ -166,7 +166,7 @@ def get_or_create_daytona_backend(
             raise
 
     _wait_until_ready(sandbox, delete_on_failure=is_new)
-    backend = DaytonaSandbox(sandbox=sandbox)
+    backend = DaytonaBackend(sandbox=sandbox)
     logger.info("Daytona sandbox ready (sandbox_id=%s)", backend.id)
 
     if is_new:
@@ -198,7 +198,7 @@ def create_daytona_sandbox(
     conversation_id: str,
     setup_script_path: str | None = None,
     output_dir: Path | None = None,
-) -> Generator[DaytonaSandbox, None, None]:
+) -> Generator[DaytonaBackend, None, None]:
     """Create or reuse a Daytona sandbox for one-shot work."""
     lease = get_or_create_daytona_backend(
         conversation_id=conversation_id,
@@ -221,3 +221,7 @@ def create_daytona_sandbox(
                         (output_dir / Path(response.path).name).write_bytes(response.content)
                         logger.debug("Downloaded output file: %s", response.path)
         delete_daytona_sandbox(sandbox_name=lease.sandbox_name)
+
+
+# Backward-compatible alias while call sites migrate.
+DaytonaSandbox = DaytonaBackend

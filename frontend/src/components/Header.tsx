@@ -1,4 +1,4 @@
-import { ChevronDown, Ellipsis, Moon, Share2, SunMedium, UsersRound } from "lucide-react";
+import { ChevronDown, Ellipsis, FolderOpen, Moon, Share2, SunMedium, UsersRound } from "lucide-react";
 import type { ChatThread, ProviderProfile } from "../types";
 import { getModeConfig } from "../constants";
 
@@ -7,6 +7,10 @@ export default function Header({
   profiles,
   activeProfileId,
   onProfileChange,
+  backendMode,
+  localRootDir,
+  onBackendModeChange,
+  onImportLocalProject,
   theme,
   onToggleTheme,
   showConversationActions,
@@ -15,6 +19,10 @@ export default function Header({
   profiles: ProviderProfile[];
   activeProfileId: string;
   onProfileChange: (profileId: string) => void;
+  backendMode: "sandbox" | "local";
+  localRootDir: string;
+  onBackendModeChange: (mode: "sandbox" | "local") => void;
+  onImportLocalProject: () => void;
   theme: "dark" | "light";
   onToggleTheme: () => void;
   showConversationActions: boolean;
@@ -96,6 +104,44 @@ export default function Header({
         ) : (
           <span className="text-xs text-[var(--text-faint)]">No profiles</span>
         )}
+
+        <div className="flex items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] p-0.5" title="Execution backend">
+          <button
+            type="button"
+            onClick={() => onBackendModeChange("sandbox")}
+            className={`rounded-md px-2.5 py-1 text-[10px] transition-all sm:text-xs cursor-pointer ${
+              backendMode === "sandbox"
+                ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
+                : "text-[var(--text-faint)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            Sandbox
+          </button>
+          <button
+            type="button"
+            onClick={() => onBackendModeChange("local")}
+            className={`rounded-md px-2.5 py-1 text-[10px] transition-all sm:text-xs cursor-pointer ${
+              backendMode === "local"
+                ? "bg-[var(--surface-hover)] font-medium text-[var(--text-primary)]"
+                : "text-[var(--text-faint)] hover:text-[var(--text-secondary)]"
+            }`}
+          >
+            Local
+          </button>
+        </div>
+
+        {backendMode === "local" ? (
+          <button
+            type="button"
+            onClick={onImportLocalProject}
+            className="inline-flex max-w-[160px] items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-2.5 py-1 text-[10px] text-[var(--text-secondary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer sm:max-w-[220px] sm:py-1.5 sm:text-xs"
+            title={localRootDir ? `Change folder: ${localRootDir}` : "Select project folder"}
+            aria-label="Select project folder"
+          >
+            <FolderOpen size={12} strokeWidth={1.9} className="shrink-0" />
+            <span className="truncate">{localRootDir || "Select folder"}</span>
+          </button>
+        ) : null}
       </div>
     </div>
   );

@@ -36,7 +36,7 @@ from src.app.services.file_store import FileStore
 from src.app.services.permissions import PermissionContextService
 from src.app.services.rate_limiter import RateLimitRule
 from src.app.services.thread_store import ThreadStore
-from src.backends.local import LocalBackend
+from src.backends.local import LocalSandbox as LocalBackend
 from src.config import build_chat_model, get_model_registry
 from src.logger import get_logger
 

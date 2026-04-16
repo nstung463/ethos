@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from src.app.modules.chat.router import _extract_file_ids, _extract_requested_thread_id, _extract_user_api_keys
+from src.app.modules.chat.router import (
+    _extract_backend_selection,
+    _extract_file_ids,
+    _extract_requested_thread_id,
+    _extract_user_api_keys,
+)
 from src.app.modules.chat.schemas import ChatRequest, Message
 
 
@@ -71,3 +76,29 @@ def test_extract_user_api_keys_reads_only_expected_string_values() -> None:
         "openrouter": "sk-or-v1-test",
         "anthropic": "sk-ant-test",
     }
+
+
+def test_extract_backend_selection_defaults_to_sandbox() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+    )
+    assert _extract_backend_selection(request) == ("sandbox", None)
+
+
+def test_extract_backend_selection_reads_local_backend_root() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+        metadata={"backend": {"mode": "local", "root_dir": "  W:/repo/app  "}},
+    )
+    assert _extract_backend_selection(request) == ("local", "W:/repo/app")
+
+
+def test_extract_backend_selection_rejects_unknown_mode() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+        metadata={"backend": {"mode": "unsupported", "root_dir": "W:/repo/app"}},
+    )
+    assert _extract_backend_selection(request) == ("sandbox", None)

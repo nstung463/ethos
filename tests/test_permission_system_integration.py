@@ -9,7 +9,7 @@ from starlette.testclient import TestClient
 
 from src.ai.permissions import PermissionMode
 from src.app import create_app
-from src.backends.local import LocalBackend
+from src.backends.local import LocalSandbox as LocalBackend
 
 
 @pytest.fixture()

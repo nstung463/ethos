@@ -1,9 +1,9 @@
 import { API_BASE_URL } from "../constants";
-import type { Attachment, Message, ProviderProfile, StreamChunk } from "../types";
+import type { Attachment, Message, PermissionRequest, ProviderProfile, StreamChunk } from "../types";
 import { authFetch } from "./auth";
 import { toApiMessages } from "./threads";
 
-function buildMetadata(profile: ProviderProfile) {
+function buildMetadata(profile: ProviderProfile, extraMetadata?: Record<string, unknown>) {
   return {
     profile: {
       provider: profile.provider,
@@ -13,6 +13,7 @@ function buildMetadata(profile: ProviderProfile) {
       deployment: profile.deployment ?? undefined,
       api_version: profile.apiVersion ?? undefined,
     },
+    ...(extraMetadata ?? {}),
   };
 }
 
@@ -48,6 +49,8 @@ export async function streamChat({
   signal,
   onContent,
   onReasoning,
+  onPermissionRequest,
+  extraMetadata,
 }: {
   model: string;
   messages: Message[];
@@ -58,6 +61,8 @@ export async function streamChat({
   signal: AbortSignal;
   onContent: (chunk: string) => void;
   onReasoning: (chunk: string) => void;
+  onPermissionRequest: (request: PermissionRequest) => void;
+  extraMetadata?: Record<string, unknown>;
 }) {
   const response = await authFetch(`${API_BASE_URL}/v1/chat/completions`, {
     method: "POST",
@@ -68,7 +73,7 @@ export async function streamChat({
       stream: true,
       thread_id: threadId,
       file_ids: fileIds,
-      metadata: buildMetadata(profile),
+      metadata: buildMetadata(profile, extraMetadata),
     }),
     signal,
   });
@@ -100,6 +105,7 @@ export async function streamChat({
       const delta = parsed.choices?.[0]?.delta;
       if (delta?.content) onContent(delta.content);
       if (delta?.reasoning_content) onReasoning(delta.reasoning_content);
+      if (delta?.permission_request) onPermissionRequest(delta.permission_request);
     }
   }
 }
@@ -130,6 +136,19 @@ export async function uploadManagedFile(file: File, signal?: AbortSignal): Promi
     contentType: payload.meta?.content_type,
     size: payload.meta?.size,
   };
+}
+
+export async function importLocalProjectFolder(signal?: AbortSignal): Promise<{ root_dir: string }> {
+  const response = await authFetch(`${API_BASE_URL}/api/files/select-local-folder`, {
+    method: "POST",
+    signal,
+  });
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || `Folder selection failed (${response.status})`);
+  }
+  return (await response.json()) as { root_dir: string };
 }
 
 async function postTask<T>(
