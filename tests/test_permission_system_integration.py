@@ -271,3 +271,104 @@ def test_chat_completion_allows_one_shot_permission_override_from_metadata(
     permission_context = captured["permission_context"]
     assert permission_context is not None
     assert permission_context.mode is PermissionMode.BYPASS_PERMISSIONS
+
+
+def test_chat_completion_streams_permission_request_on_interrupt(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    tmp_path: Path,
+) -> None:
+    """When the agent is interrupted, the SSE stream must include a permission_request chunk."""
+    import json
+    from unittest.mock import patch
+
+    class _InterruptAgent:
+        async def astream_events(self, input_data, config=None, version=None):
+            return
+            yield  # make it an empty async generator
+
+        async def aget_state(self, config):
+            # Simulate a pending interrupt in graph state
+            class _Interrupt:
+                value = {
+                    "behavior": "ask",
+                    "reason": "Edit requires approval",
+                    "subject": "edit",
+                    "path": "hello.py",
+                    "suggested_mode": "accept_edits",
+                }
+            class _Task:
+                interrupts = [_Interrupt()]
+            class _Snap:
+                tasks = [_Task()]
+            return _Snap()
+
+    with (
+        patch("src.app.modules.chat.router.create_ethos_agent", return_value=_InterruptAgent()),
+    ):
+        response = client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "ethos",
+                "stream": True,
+                "messages": [{"role": "user", "content": "write hello.py"}],
+            },
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    chunks = [
+        json.loads(line[len("data: "):])
+        for line in response.text.splitlines()
+        if line.startswith("data: ") and line != "data: [DONE]"
+    ]
+    permission_chunks = [
+        c for c in chunks
+        if c.get("choices", [{}])[0].get("delta", {}).get("permission_request")
+    ]
+    assert len(permission_chunks) >= 1
+    pr = permission_chunks[0]["choices"][0]["delta"]["permission_request"]
+    assert pr["behavior"] == "ask"
+    assert pr["reason"] == "Edit requires approval"
+
+
+def test_chat_completion_resumes_agent_with_command(
+    client: TestClient,
+    auth_headers: dict[str, str],
+    tmp_path: Path,
+) -> None:
+    """metadata.resume must be converted to Command(resume=...) and passed to the agent."""
+    import json
+    from unittest.mock import patch
+    from langgraph.types import Command
+
+    captured = {}
+
+    class _ResumeAgent:
+        async def astream_events(self, input_data, config=None, version=None):
+            captured["input"] = input_data
+            return
+            yield
+
+        async def aget_state(self, config):
+            class _Snap:
+                tasks = []
+            return _Snap()
+
+    with (
+        patch("src.app.modules.chat.router.create_ethos_agent", return_value=_ResumeAgent()),
+    ):
+        response = client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "ethos",
+                "stream": True,
+                "messages": [{"role": "user", "content": "approve"}],
+                "metadata": {"resume": {"approved": True}},
+            },
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    assert isinstance(captured.get("input"), Command)
+    assert captured["input"].resume == {"approved": True}

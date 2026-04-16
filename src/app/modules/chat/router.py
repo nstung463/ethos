@@ -44,28 +44,14 @@ router = APIRouter(prefix="/v1", tags=["v1"])
 _SANDBOX_ATTACHMENTS_ROOT = "/tmp/ethos/attachments"
 
 
-def _extract_permission_request(output: Any) -> dict[str, str] | None:
-    candidates: list[str] = []
-
-    def _collect(value: Any) -> None:
-        if isinstance(value, str):
-            candidates.append(value.strip())
-            return
-        if isinstance(value, dict):
-            for nested in value.values():
-                _collect(nested)
-            return
-        if isinstance(value, (list, tuple)):
-            for nested in value:
-                _collect(nested)
-
-    _collect(output)
-    for text in candidates:
-        if text.startswith("Permission ask:"):
-            return {"behavior": "ask", "reason": text.split(":", 1)[1].strip()}
-        if text.startswith("Permission deny:"):
-            return {"behavior": "deny", "reason": text.split(":", 1)[1].strip()}
-    return None
+def _extract_resume_command(request: "ChatRequest"):
+    """Return a LangGraph Command(resume=...) if the request carries a resume payload, else None."""
+    from langgraph.types import Command
+    metadata = getattr(request, "metadata", None) or {}
+    resume_payload = metadata.get("resume")
+    if resume_payload is None:
+        return None
+    return Command(resume=resume_payload)
 
 
 def _resolve_model_id(model_id: str) -> str:
@@ -314,12 +300,6 @@ def _apply_permission_override(
     return set_mode(base_context, override_mode)
 
 
-def _suggest_thread_mode_for_tool(tool_name: str) -> str:
-    if tool_name in {"write_file", "edit_file", "notebook_edit"}:
-        return PermissionMode.ACCEPT_EDITS.value
-    return PermissionMode.BYPASS_PERMISSIONS.value
-
-
 def _stage_attached_files(
     *,
     request: ChatRequest,
@@ -415,7 +395,7 @@ def _sse(delta: dict[str, Any], model: str, finish_reason: str | None = None) ->
 async def _stream_response(
     *,
     agent: object,
-    messages: list[Message],
+    agent_input: Any,
     model: str,
     thread_id: str,
     backend,
@@ -424,12 +404,13 @@ async def _stream_response(
     source_records: dict[str, dict[str, Any]] | None = None,
     sandbox_paths: dict[str, str] | None = None,
     target_file_id: str | None = None,
+    messages: list[Message] | None = None,
 ) -> AsyncIterator[str]:
-    lc_messages = _to_lc_messages(messages)
     config = {"configurable": {"thread_id": thread_id}}
-    logger.info("Streaming chat request started (model=%s, session_id=%s, messages=%d)", model, thread_id, len(messages))
+    msg_count = len(messages) if messages else 0
+    logger.info("Streaming chat request started (model=%s, session_id=%s, messages=%d)", model, thread_id, msg_count)
 
-    async for event in agent.astream_events({"messages": lc_messages}, config=config, version="v2"):
+    async for event in agent.astream_events(agent_input, config=config, version="v2"):
         kind = event["event"]
 
         if kind == "on_chat_model_stream":
@@ -447,20 +428,15 @@ async def _stream_response(
                 yield _sse({"reasoning_content": f"Using tool `{tool_name}` with params: {input_str}\n"}, model)
             else:
                 yield _sse({"reasoning_content": f"Using tool `{tool_name}`\n"}, model)
-        elif kind == "on_tool_end":
-            tool_name = event.get("name", "tool")
-            permission_request = _extract_permission_request(event.get("data", {}).get("output"))
-            if permission_request is not None:
-                yield _sse(
-                    {
-                        "permission_request": {
-                            **permission_request,
-                            "tool_name": tool_name,
-                            "suggested_thread_mode": _suggest_thread_mode_for_tool(tool_name),
-                        }
-                    },
-                    model,
-                )
+
+    # After the event loop ends, check for pending LangGraph interrupt
+    try:
+        snapshot = await agent.aget_state(config)
+        for task in getattr(snapshot, "tasks", []):
+            for intr in getattr(task, "interrupts", []):
+                yield _sse({"permission_request": intr.value}, model)
+    except Exception:
+        logger.debug("aget_state not available or failed — skipping interrupt check")
 
     if (
         source_records
@@ -695,11 +671,19 @@ async def chat_completions(
         http_request.client.host if http_request.client else "unknown",
     )
 
+    resume_command = _extract_resume_command(request)
+    if resume_command is not None:
+        agent_input = resume_command
+    else:
+        agent_input = {"messages": _to_lc_messages(effective_messages)}
+
+    config = {"configurable": {"thread_id": thread_id}}
+
     if request.stream:
         return StreamingResponse(
             _stream_response(
                 agent=agent,
-                messages=effective_messages,
+                agent_input=agent_input,
                 model=resolved_model,
                 thread_id=thread_id,
                 backend=backend,
@@ -708,14 +692,13 @@ async def chat_completions(
                 source_records=source_records,
                 sandbox_paths=sandbox_paths,
                 target_file_id=target_file_id,
+                messages=effective_messages,
             ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    lc_messages = _to_lc_messages(effective_messages)
-    config = {"configurable": {"thread_id": thread_id}}
-    result = await agent.ainvoke({"messages": lc_messages}, config=config)
+    result = await agent.ainvoke(agent_input, config=config)
     last = result["messages"][-1]
     content = _extract_text(last.content)
 
