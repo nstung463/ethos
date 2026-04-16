@@ -128,6 +128,15 @@ function ChatWorkspace() {
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  // Sync document title with active thread
+  useEffect(() => {
+    if (activeThread?.title && activeThread.title !== "New Thread") {
+      document.title = `${activeThread.title} | Ethos`;
+    } else {
+      document.title = "Ethos";
+    }
+  }, [activeThread?.title]);
+
   // Connectivity check — keep fetching /v1/models but don't use result for selector
   useEffect(() => {
     const controller = new AbortController();
@@ -195,57 +204,57 @@ function ChatWorkspace() {
   const quickActionStyles =
     theme === "dark"
       ? [
-          {
-            card: "border-[#59462a] bg-[linear-gradient(180deg,#21170e_0%,#2f2214_100%)] hover:border-[#c58a2b] hover:bg-[linear-gradient(180deg,#2a1d11_0%,#3a2a18_100%)]",
-            badge: "bg-[#3a2917] text-[#f2bf6a] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
-            title: "text-[#fde3b1]",
-            body: "text-[#c9a46b]",
-          },
-          {
-            card: "border-[#214c46] bg-[linear-gradient(180deg,#0d1b19_0%,#122623_100%)] hover:border-[#3ea091] hover:bg-[linear-gradient(180deg,#11211e_0%,#18302c_100%)]",
-            badge: "bg-[#14322d] text-[#6fe0cf] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
-            title: "text-[#b9f1e8]",
-            body: "text-[#7db7ae]",
-          },
-          {
-            card: "border-[#28456f] bg-[linear-gradient(180deg,#101826_0%,#152135_100%)] hover:border-[#5689df] hover:bg-[linear-gradient(180deg,#142032_0%,#1b2b45_100%)]",
-            badge: "bg-[#172b49] text-[#8db7ff] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
-            title: "text-[#d8e6ff]",
-            body: "text-[#90abd3]",
-          },
-          {
-            card: "border-[#4a3363] bg-[linear-gradient(180deg,#191320_0%,#241a2f_100%)] hover:border-[#8e61c9] hover:bg-[linear-gradient(180deg,#21182a_0%,#2d2040_100%)]",
-            badge: "bg-[#2d2140] text-[#d0a5ff] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
-            title: "text-[#eddcff]",
-            body: "text-[#b496d4]",
-          },
-        ]
+        {
+          card: "border-[#59462a] bg-[linear-gradient(180deg,#21170e_0%,#2f2214_100%)] hover:border-[#c58a2b] hover:bg-[linear-gradient(180deg,#2a1d11_0%,#3a2a18_100%)]",
+          badge: "bg-[#3a2917] text-[#f2bf6a] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
+          title: "text-[#fde3b1]",
+          body: "text-[#c9a46b]",
+        },
+        {
+          card: "border-[#214c46] bg-[linear-gradient(180deg,#0d1b19_0%,#122623_100%)] hover:border-[#3ea091] hover:bg-[linear-gradient(180deg,#11211e_0%,#18302c_100%)]",
+          badge: "bg-[#14322d] text-[#6fe0cf] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
+          title: "text-[#b9f1e8]",
+          body: "text-[#7db7ae]",
+        },
+        {
+          card: "border-[#28456f] bg-[linear-gradient(180deg,#101826_0%,#152135_100%)] hover:border-[#5689df] hover:bg-[linear-gradient(180deg,#142032_0%,#1b2b45_100%)]",
+          badge: "bg-[#172b49] text-[#8db7ff] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
+          title: "text-[#d8e6ff]",
+          body: "text-[#90abd3]",
+        },
+        {
+          card: "border-[#4a3363] bg-[linear-gradient(180deg,#191320_0%,#241a2f_100%)] hover:border-[#8e61c9] hover:bg-[linear-gradient(180deg,#21182a_0%,#2d2040_100%)]",
+          badge: "bg-[#2d2140] text-[#d0a5ff] shadow-[0_10px_24px_rgba(0,0,0,0.24)]",
+          title: "text-[#eddcff]",
+          body: "text-[#b496d4]",
+        },
+      ]
       : [
-          {
-            card: "border-[#f0c98d] bg-[linear-gradient(180deg,#fff7e9_0%,#f6e3bf_100%)] hover:border-[#d8a44d] hover:bg-[linear-gradient(180deg,#fff2d7_0%,#efd19f_100%)]",
-            badge: "bg-[#fff1cf] text-[#9a5b00] shadow-[0_10px_24px_rgba(217,164,77,0.22)]",
-            title: "text-[#543100]",
-            body: "text-[#7c5b22]",
-          },
-          {
-            card: "border-[#9dd5ce] bg-[linear-gradient(180deg,#effcf8_0%,#d1f0e8_100%)] hover:border-[#46aa9b] hover:bg-[linear-gradient(180deg,#e3faf4_0%,#bae7dd_100%)]",
-            badge: "bg-[#dcf7f0] text-[#0d7a69] shadow-[0_10px_24px_rgba(70,170,155,0.2)]",
-            title: "text-[#11483f]",
-            body: "text-[#2f6e63]",
-          },
-          {
-            card: "border-[#a9c7f7] bg-[linear-gradient(180deg,#f3f8ff_0%,#dbe9ff_100%)] hover:border-[#5c8fe8] hover:bg-[linear-gradient(180deg,#ebf3ff_0%,#c9ddff_100%)]",
-            badge: "bg-[#e3eeff] text-[#2457b8] shadow-[0_10px_24px_rgba(92,143,232,0.22)]",
-            title: "text-[#173770]",
-            body: "text-[#42639d]",
-          },
-          {
-            card: "border-[#d3b0f0] bg-[linear-gradient(180deg,#fbf4ff_0%,#ead8fb_100%)] hover:border-[#a05ed8] hover:bg-[linear-gradient(180deg,#f8eeff_0%,#dfc1f7_100%)]",
-            badge: "bg-[#f1e5ff] text-[#7d39bb] shadow-[0_10px_24px_rgba(160,94,216,0.2)]",
-            title: "text-[#522276]",
-            body: "text-[#7f58a3]",
-          },
-        ];
+        {
+          card: "border-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.4)] backdrop-blur-[24px] hover:bg-[rgba(255,255,255,0.6)] hover:border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+          badge: "bg-[rgba(255,255,255,0.6)] text-[#9a5b00] shadow-sm",
+          title: "text-[#543100]",
+          body: "text-[#7c5b22]",
+        },
+        {
+          card: "border-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.4)] backdrop-blur-[24px] hover:bg-[rgba(255,255,255,0.6)] hover:border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+          badge: "bg-[rgba(255,255,255,0.6)] text-[#0d7a69] shadow-sm",
+          title: "text-[#11483f]",
+          body: "text-[#2f6e63]",
+        },
+        {
+          card: "border-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.4)] backdrop-blur-[24px] hover:bg-[rgba(255,255,255,0.6)] hover:border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+          badge: "bg-[rgba(255,255,255,0.6)] text-[#2457b8] shadow-sm",
+          title: "text-[#173770]",
+          body: "text-[#42639d]",
+        },
+        {
+          card: "border-[rgba(255,255,255,0.7)] bg-[rgba(255,255,255,0.4)] backdrop-blur-[24px] hover:bg-[rgba(255,255,255,0.6)] hover:border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+          badge: "bg-[rgba(255,255,255,0.6)] text-[#7d39bb] shadow-sm",
+          title: "text-[#522276]",
+          body: "text-[#7f58a3]",
+        },
+      ];
 
   function updateThread(threadIdToUpdate: string, updater: (thread: ChatThread) => ChatThread) {
     setThreads((current) =>
@@ -290,11 +299,11 @@ function ChatWorkspace() {
         messages: current.messages.map((message, index, array) =>
           index === array.length - 1 && message.role === "assistant"
             ? {
-                ...message,
-                followUps: Array.isArray(followUpsResult.value.follow_ups)
-                  ? followUpsResult.value.follow_ups
-                  : [],
-              }
+              ...message,
+              followUps: Array.isArray(followUpsResult.value.follow_ups)
+                ? followUpsResult.value.follow_ups
+                : [],
+            }
             : message,
         ),
         updatedAt: new Date().toISOString(),
@@ -322,6 +331,32 @@ function ChatWorkspace() {
     if (threadId === id) {
       navigate("/app");
     }
+  }
+
+  function handleRenameThread(id: string, title: string) {
+    const nextTitle = title.trim();
+    if (!nextTitle) return;
+    updateThread(id, (thread) => ({
+      ...thread,
+      title: nextTitle,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
+  function handleToggleFavoriteThread(id: string) {
+    updateThread(id, (thread) => ({
+      ...thread,
+      isFavorite: !thread.isFavorite,
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
+  function handleMoveThreadToProject(id: string, project: string) {
+    updateThread(id, (thread) => ({
+      ...thread,
+      project: project.trim(),
+      updatedAt: new Date().toISOString(),
+    }));
   }
 
   function handleProfileChange(profileId: string) {
@@ -421,15 +456,12 @@ function ChatWorkspace() {
       messages: thread.messages.map((message) =>
         message.id === assistantMessageId
           ? {
-              ...message,
-              content: "",
-              reasoning: "",
-              toolEvents: [],
-              error: undefined,
-              permissionRequest: undefined,
-              thinkingDuration: undefined,
-              status: "streaming",
-            }
+            ...message,
+            content: "",
+            error: undefined,
+            permissionRequest: undefined,
+            status: "streaming",
+          }
           : message,
       ),
       updatedAt: new Date().toISOString(),
@@ -438,7 +470,7 @@ function ChatWorkspace() {
 
   async function retryPendingPermissionRequest(
     assistantMessageId: string,
-    options: { persistMode?: PermissionMode; oneShotMode?: PermissionMode },
+    options: { persistMode?: PermissionMode },
   ) {
     const pending = pendingPermissionRetriesRef.current[assistantMessageId];
     if (!pending) {
@@ -482,9 +514,10 @@ function ChatWorkspace() {
         fileIds: pending.fileIds,
         profile: pending.profile,
         signal: controller.signal,
-        extraMetadata: options.oneShotMode
-          ? { ...backendMetadata, permission_override: { mode: options.oneShotMode } }
-          : backendMetadata,
+        extraMetadata: {
+          ...backendMetadata,
+          resume: { approved: true },
+        },
         onContent: (chunk) => {
           sawContent = true;
           updateThread(pending.localThreadId, (thread) => ({
@@ -492,10 +525,10 @@ function ChatWorkspace() {
             messages: thread.messages.map((message) =>
               message.id === assistantMessageId
                 ? {
-                    ...message,
-                    content: `${message.content}${chunk}`,
-                    permissionRequest: undefined,
-                  }
+                  ...message,
+                  content: `${message.content}${chunk}`,
+                  permissionRequest: undefined,
+                }
                 : message,
             ),
             updatedAt: new Date().toISOString(),
@@ -559,11 +592,11 @@ function ChatWorkspace() {
         messages: thread.messages.map((item) =>
           item.id === assistantMessageId
             ? {
-                ...item,
-                status: "error",
-                error: message,
-                content: item.content || "The assistant did not return any text.",
-              }
+              ...item,
+              status: "error",
+              error: message,
+              content: item.content || "The assistant did not return any text.",
+            }
             : item,
         ),
       }));
@@ -828,11 +861,11 @@ function ChatWorkspace() {
         messages: thread.messages.map((message) =>
           message.id === assistantMsg.id
             ? {
-                ...message,
-                status: "error",
-                error: msg,
-                content: message.content || "The assistant did not return any text.",
-              }
+              ...message,
+              status: "error",
+              error: msg,
+              content: message.content || "The assistant did not return any text.",
+            }
             : message,
         ),
       }));
@@ -907,13 +940,7 @@ function ChatWorkspace() {
     if (!pending) {
       throw new Error("No blocked action is available to approve.");
     }
-    const existingRequest =
-      threads
-        .find((thread) => thread.id === pending.localThreadId)
-        ?.messages.find((message) => message.id === messageId)?.permissionRequest;
-    await retryPendingPermissionRequest(messageId, {
-      oneShotMode: existingRequest?.suggested_thread_mode ?? "bypass_permissions",
-    });
+    await retryPendingPermissionRequest(messageId, {});
   }
 
   async function handleApproveForChat(messageId: string, mode: PermissionMode) {
@@ -944,6 +971,9 @@ function ChatWorkspace() {
         activeThreadId={threadId}
         onNewChat={handleNewChat}
         onSelectThread={handleSelectThread}
+        onRenameThread={handleRenameThread}
+        onToggleFavoriteThread={handleToggleFavoriteThread}
+        onMoveThreadToProject={handleMoveThreadToProject}
         onDeleteThread={handleDeleteThread}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((value) => !value)}
@@ -1000,11 +1030,46 @@ function ChatWorkspace() {
             />
           </>
         ) : (
-          <div className="flex flex-1 justify-center overflow-y-auto px-4 pb-8 pt-2 sm:px-6 sm:pb-10 sm:pt-3">
-            <div className="w-full max-w-5xl">
-              <EmptyState />
+          <div
+            className="flex flex-1 items-center justify-center overflow-y-auto px-4 pb-4 sm:px-6"
+            style={
+              theme === "light"
+                ? {
+                  backgroundImage: "url('/src/assets/abstract-texture-background.jpg')",
+                  backgroundSize: "cover",
+                  backgroundPosition: "center",
+                  backgroundAttachment: "fixed",
+                }
+                : {
+                  // Nếu bạn có ảnh nền dark, thay url vào đây: backgroundImage: "url('/src/assets/dark-bg.jpg')"
+                }
+            }
+          >
+            <div className="w-full max-w-5xl relative z-10 flex flex-col">
+              <div className="w-full flex justify-center mb-2 drop-shadow-md">
+                <EmptyState />
+              </div>
 
-              <div className="mx-auto max-w-3xl">
+              <div 
+                className="mx-auto max-w-3xl w-full p-2 lg:p-3 rounded-[36px]"
+                style={
+                  theme === "light"
+                    ? {
+                        background: "rgba(255, 255, 255, 0.45)",
+                        backdropFilter: "blur(28px)",
+                        WebkitBackdropFilter: "blur(28px)",
+                        border: "1px solid rgba(255, 255, 255, 0.8)",
+                        boxShadow: "0 12px 40px 0 rgba(19, 53, 97, 0.08)",
+                      }
+                    : {
+                        background: "rgba(20, 20, 20, 0.5)",
+                        backdropFilter: "blur(28px)",
+                        WebkitBackdropFilter: "blur(28px)",
+                        border: "1px solid rgba(255, 255, 255, 0.1)",
+                        boxShadow: "0 12px 40px 0 rgba(0, 0, 0, 0.6)",
+                      }
+                }
+              >
                 <Composer
                   draft={draft}
                   mode={activeMode}
@@ -1027,7 +1092,7 @@ function ChatWorkspace() {
                 />
               </div>
 
-              <div className="mx-auto mt-5 flex max-w-4xl flex-wrap items-center justify-center gap-2 px-2">
+              <div className="mx-auto mt-3 flex max-w-4xl flex-wrap items-center justify-center gap-2 px-2">
                 {CHAT_SUGGESTIONS.map((prompt) => (
                   <button
                     key={prompt}
@@ -1040,26 +1105,26 @@ function ChatWorkspace() {
                 ))}
               </div>
 
-                <div className="mx-auto mt-6 grid max-w-4xl grid-cols-1 gap-3 px-6 text-left sm:grid-cols-2 xl:grid-cols-4">
-                  {QUICK_ACTIONS.map((action, index) => {
-                    const Icon = quickActionIcons[index % quickActionIcons.length];
-                    const style = quickActionStyles[index % quickActionStyles.length];
-                    return (
-                      <button
-                        key={action.title}
-                        onClick={() => injectSuggestion(action.prompt)}
-                        type="button"
-                        className={`group rounded-[1.4rem] border p-4 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${style.card}`}
-                      >
-                        <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${style.badge}`}>
-                          <Icon size={18} strokeWidth={1.9} />
-                        </div>
-                        <div className={`mb-1 text-sm font-semibold ${style.title}`}>{action.title}</div>
-                        <div className={`text-xs leading-5 ${style.body}`}>{action.prompt}</div>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="mx-auto mt-3 grid max-w-4xl grid-cols-1 gap-3 px-6 text-left sm:grid-cols-2 xl:grid-cols-4">
+                {QUICK_ACTIONS.map((action, index) => {
+                  const Icon = quickActionIcons[index % quickActionIcons.length];
+                  const style = quickActionStyles[index % quickActionStyles.length];
+                  return (
+                    <button
+                      key={action.title}
+                      onClick={() => injectSuggestion(action.prompt)}
+                      type="button"
+                      className={`group rounded-[1.4rem] border p-4 transition-all duration-200 hover:-translate-y-0.5 cursor-pointer ${style.card}`}
+                    >
+                      <div className={`mb-4 flex h-11 w-11 items-center justify-center rounded-2xl ${style.badge}`}>
+                        <Icon size={18} strokeWidth={1.9} />
+                      </div>
+                      <div className={`mb-1 text-sm font-semibold ${style.title}`}>{action.title}</div>
+                      <div className={`text-xs leading-5 ${style.body}`}>{action.prompt}</div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

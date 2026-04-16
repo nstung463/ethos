@@ -39,6 +39,12 @@ def build_bash_tool(
     policy = ShellPolicy()
     evaluator = PermissionEvaluator()
 
+    approval_options = [
+        {"id": "once", "label": "Approve once"},
+        {"id": "thread_command", "label": "Allow this command in this thread"},
+        {"id": "user_command", "label": "Always allow this command"},
+    ]
+
     def _bash(command: str, timeout: int | None = None, background: bool = False) -> str:
         if "bash" not in backend.supported_shells:
             return "Error: bash is not supported by the active backend."
@@ -62,6 +68,7 @@ def build_bash_tool(
                     "reason": decision.reason,
                     "subject": PermissionSubject.BASH.value,
                     "command": command,
+                    "approval_options": approval_options,
                     "suggested_mode": PermissionMode.BYPASS_PERMISSIONS.value,
                     "suggestions": [s.value for s in (decision.suggestions or [])],
                 })

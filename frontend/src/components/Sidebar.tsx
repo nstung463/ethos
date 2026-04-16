@@ -3,6 +3,7 @@ import {
   Bot,
   ChevronDown,
   FolderPlus,
+  Hexagon,
   Library,
   LayoutPanelLeft,
   PanelLeftClose,
@@ -10,6 +11,7 @@ import {
   Plus,
   Search,
   Settings,
+  Sparkles,
 } from "lucide-react";
 import type { ChatThread } from "../types";
 import ThreadItem from "./ThreadItem";
@@ -49,11 +51,11 @@ function SectionHeader({
 }) {
   return (
     <div className="mb-2 flex items-center gap-2 px-2">
-        <button
-          type="button"
-          onClick={onToggle}
-          className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)] cursor-pointer"
-        >
+      <button
+        type="button"
+        onClick={onToggle}
+        className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-[11px] font-medium text-[var(--text-muted)] transition hover:bg-[var(--surface-soft)] hover:text-[var(--text-primary)] cursor-pointer"
+      >
         <ChevronDown size={14} strokeWidth={2} className={expanded ? "rotate-0 transition-transform" : "-rotate-90 transition-transform"} />
         <span className="truncate">{title}</span>
       </button>
@@ -115,11 +117,33 @@ function ProjectItem({
   );
 }
 
+function CollapsibleSection({
+  expanded,
+  children,
+}: {
+  expanded: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className={[
+        "grid transition-[grid-template-rows,opacity] duration-220 ease-out",
+        expanded ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0",
+      ].join(" ")}
+    >
+      <div className="overflow-hidden">{children}</div>
+    </div>
+  );
+}
+
 export default function Sidebar({
   threads,
   activeThreadId,
   onNewChat,
   onSelectThread,
+  onRenameThread,
+  onToggleFavoriteThread,
+  onMoveThreadToProject,
   onDeleteThread,
   collapsed,
   onToggle,
@@ -129,6 +153,9 @@ export default function Sidebar({
   activeThreadId: string;
   onNewChat: () => void;
   onSelectThread: (id: string) => void;
+  onRenameThread: (id: string, title: string) => void;
+  onToggleFavoriteThread: (id: string) => void;
+  onMoveThreadToProject: (id: string, project: string) => void;
   onDeleteThread: (id: string) => void;
   collapsed: boolean;
   onToggle: () => void;
@@ -147,14 +174,12 @@ export default function Sidebar({
 
   return (
     <aside
-      className={`relative h-full shrink-0 overflow-hidden border-r border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-primary)] transition-[width] duration-300 ease-out ${
-        collapsed ? "w-16" : "w-[280px]"
-      }`}
+      className={`relative z-30 h-full shrink-0 overflow-visible border-r border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-primary)] transition-[width] duration-300 ease-out ${collapsed ? "w-16" : "w-[280px]"
+        }`}
     >
       <div
-        className={`absolute inset-0 flex h-full flex-col items-center py-3 transition-all duration-300 ease-out ${
-          collapsed ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0 pointer-events-none"
-        }`}
+        className={`absolute inset-0 flex h-full flex-col items-center py-3 transition-all duration-300 ease-out ${collapsed ? "translate-x-0 opacity-100" : "-translate-x-4 opacity-0 pointer-events-none"
+          }`}
       >
         <div className="mb-3 flex w-full flex-col items-center gap-2">
           <SidebarGlyph title="Expand sidebar" onClick={onToggle}>
@@ -173,23 +198,31 @@ export default function Sidebar({
       </div>
 
       <div
-        className={`absolute inset-0 flex h-full flex-col transition-all duration-300 ease-out ${
-          collapsed ? "translate-x-6 opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
-        }`}
+        className={`absolute inset-0 flex h-full flex-col transition-all duration-300 ease-out ${collapsed ? "translate-x-6 opacity-0 pointer-events-none" : "translate-x-0 opacity-100"
+          }`}
       >
-        <header className="flex h-14 shrink-0 items-center justify-between px-3">
-          <div className="flex min-w-0 items-center gap-3">
-          <div
-            className="flex h-8 w-8 items-center justify-center rounded-xl text-[var(--accent-contrast)]"
-            style={{ background: "var(--surface-sidebar-logo)", color: "var(--surface-active-text)", boxShadow: "0 6px 18px color-mix(in oklab, var(--shadow-panel) 40%, transparent)" }}
+        <header className="flex h-14 shrink-0 items-center justify-between px-3 mt-1 mb-1">
+          <button
+            type="button"
+            onClick={onNewChat}
+            className="group flex min-w-0 items-center gap-1 transition-opacity hover:opacity-80 cursor-pointer text-left"
           >
-            <Bot aria-hidden="true" size={18} strokeWidth={1.8} />
-          </div>
-            <div className="min-w-0">
-              <div className="truncate text-[13px] font-semibold text-[var(--text-primary)]">ethos</div>
-              <div className="truncate text-[11px] text-[var(--text-soft)]">Workspace</div>
+            <div className="relative flex h-11 w-11 items-center justify-center transform transition-transform group-hover:-translate-y-0.5 drop-shadow-md">
+              <img
+                src="/src/assets/ethos1.png"
+                alt="Ethos Logo"
+                className="h-full w-full object-contain transform scale-[1.25]"
+              />
             </div>
-          </div>
+            <div className="min-w-0 flex items-baseline">
+              <span
+                className="text-[23px] font-bold tracking-[-0.03em] text-[var(--text-primary)] -ml-1.2"
+                style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+              >
+                Ethos
+              </span>
+            </div>
+          </button>
 
           <SidebarGlyph title="Collapse sidebar" onClick={onToggle}>
             <PanelLeftClose size={16} strokeWidth={1.8} />
@@ -239,19 +272,19 @@ export default function Sidebar({
                   </SidebarGlyph>
                 }
               />
-              {projectsExpanded ? (
-                <div className="space-y-1">
+              <CollapsibleSection expanded={projectsExpanded}>
+                <div className="space-y-1 pt-0.5">
                   <ProjectItem label="Build system" count="4" />
                   <ProjectItem label="Ethos rollout" count="2" active />
                   <ProjectItem label="Research notes" count="9" />
                 </div>
-              ) : null}
+              </CollapsibleSection>
             </section>
 
             <section>
               <SectionHeader title="All tasks" expanded={tasksExpanded} onToggle={() => setTasksExpanded((value) => !value)} />
-              {tasksExpanded ? (
-                <div className="space-y-1">
+              <CollapsibleSection expanded={tasksExpanded}>
+                <div className="space-y-1 pt-0.5">
                   {filtered.length > 0 ? (
                     filtered.map((thread) => (
                       <ThreadItem
@@ -259,6 +292,9 @@ export default function Sidebar({
                         thread={thread}
                         isActive={thread.id === activeThreadId}
                         onSelect={() => onSelectThread(thread.id)}
+                        onRename={(title) => onRenameThread(thread.id, title)}
+                        onToggleFavorite={() => onToggleFavoriteThread(thread.id)}
+                        onMoveToProject={(project) => onMoveThreadToProject(thread.id, project)}
                         onDelete={() => onDeleteThread(thread.id)}
                       />
                     ))
@@ -266,7 +302,7 @@ export default function Sidebar({
                     <div className="px-3 py-4 text-center text-[11px] text-[var(--text-soft)]">{search ? "No tasks found" : "No tasks yet"}</div>
                   )}
                 </div>
-              ) : null}
+              </CollapsibleSection>
             </section>
           </div>
         </div>

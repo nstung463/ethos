@@ -55,7 +55,10 @@ export type PermissionRequest = {
   behavior: "ask" | "deny";
   reason: string;
   tool_name?: string;
-  suggested_thread_mode?: PermissionMode;
+  suggested_mode?: PermissionMode;
+  subject?: PermissionSubject;
+  path?: string;
+  command?: string;
 };
 
 export type PermissionProfile = {
@@ -91,6 +94,8 @@ export type ChatThread = {
   id: string;
   remoteId?: string;
   title: string;
+  isFavorite?: boolean;
+  project?: string;
   model: string;
   profileId?: string;
   backendMode?: "sandbox" | "local";

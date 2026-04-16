@@ -1,4 +1,4 @@
-﻿"""Ethos CLI entry point.
+"""Ethos CLI entry point.
 
 Modes:
   python ethos.py               â€” local pathlib mode (default)

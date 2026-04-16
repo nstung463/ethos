@@ -18,12 +18,14 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
           const reason = permissionRequest.reason;
           const toolName =
             typeof permissionRequest.tool_name === "string" ? permissionRequest.tool_name : undefined;
-          const suggestedThreadMode =
-            permissionRequest.suggested_thread_mode === "default" ||
-            permissionRequest.suggested_thread_mode === "accept_edits" ||
-            permissionRequest.suggested_thread_mode === "bypass_permissions" ||
-            permissionRequest.suggested_thread_mode === "dont_ask"
-              ? permissionRequest.suggested_thread_mode
+          const rawSuggestedMode =
+            permissionRequest.suggested_mode ?? permissionRequest.suggested_thread_mode;
+          const suggestedMode =
+            rawSuggestedMode === "default" ||
+            rawSuggestedMode === "accept_edits" ||
+            rawSuggestedMode === "bypass_permissions" ||
+            rawSuggestedMode === "dont_ask"
+              ? rawSuggestedMode
               : undefined;
           return behavior === "ask" || behavior === "deny"
             ? typeof reason === "string"
@@ -32,7 +34,16 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
                     behavior,
                     reason,
                     tool_name: toolName,
-                    suggested_thread_mode: suggestedThreadMode,
+                    suggested_mode: suggestedMode,
+                    subject:
+                      permissionRequest.subject === "read" ||
+                      permissionRequest.subject === "edit" ||
+                      permissionRequest.subject === "bash" ||
+                      permissionRequest.subject === "powershell"
+                        ? permissionRequest.subject
+                        : undefined,
+                    path: typeof permissionRequest.path === "string" ? permissionRequest.path : undefined,
+                    command: typeof permissionRequest.command === "string" ? permissionRequest.command : undefined,
                   },
                 }
               : {}
@@ -79,6 +90,8 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
     remoteId: typeof thread.remoteId === "string" ? thread.remoteId : undefined,
     title: typeof thread.title === "string" ? thread.title : "New conversation",
+    isFavorite: typeof thread.isFavorite === "boolean" ? thread.isFavorite : false,
+    project: typeof thread.project === "string" ? thread.project : "",
     model: typeof thread.model === "string" ? thread.model : "",
     profileId: typeof thread.profileId === "string" ? thread.profileId : undefined,
     backendMode:

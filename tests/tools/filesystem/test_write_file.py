@@ -84,6 +84,11 @@ def test_write_file_calls_interrupt_not_string_on_ask(workspace: Path) -> None:
     assert interrupted_payloads[0]["path"] == "new.txt"
     assert "suggested_mode" in interrupted_payloads[0]
     assert "suggestions" in interrupted_payloads[0]
+    assert interrupted_payloads[0]["approval_options"] == [
+        {"id": "once", "label": "Approve once"},
+        {"id": "thread_file", "label": "Allow this file in this thread"},
+        {"id": "user_file", "label": "Always allow this file"},
+    ]
     assert "denied" in result.lower()
 
 

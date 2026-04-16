@@ -13,6 +13,20 @@ from src.ai.permissions.types import (
 )
 
 
+def _approval_options(subject: PermissionSubject) -> list[dict[str, str]]:
+    if subject is PermissionSubject.EDIT:
+        return [
+            {"id": "once", "label": "Approve once"},
+            {"id": "thread_file", "label": "Allow this file in this thread"},
+            {"id": "user_file", "label": "Always allow this file"},
+        ]
+    return [
+        {"id": "once", "label": "Approve once"},
+        {"id": "thread_file", "label": "Allow this file in this thread"},
+        {"id": "user_file", "label": "Always allow this file"},
+    ]
+
+
 def _suggested_mode(subject: PermissionSubject) -> str:
     """Return the permission mode string to suggest for a filesystem subject (filesystem subjects only)."""
     if subject is PermissionSubject.EDIT:
@@ -61,6 +75,7 @@ def permission_error(
             "reason": decision.reason,
             "subject": subject.value,
             "path": path,
+            "approval_options": _approval_options(subject),
             "suggested_mode": _suggested_mode(subject),
             "suggestions": [s.value for s in (decision.suggestions or [])],
         })

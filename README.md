@@ -6,6 +6,12 @@
 
 ---
 
+## Preview
+
+![Ethos Landing Page](docs/assets/landing-page.png)
+
+---
+
 ## Features
 
 - **LangGraph agent** (`create_ethos_agent`) with conversational checkpointing (`MemorySaver`).
