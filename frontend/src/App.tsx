@@ -1,12 +1,38 @@
 import { FormEvent, startTransition, useEffect, useRef, useState } from "react";
 import { Navigate, Route, Routes, useNavigate, useParams } from "react-router-dom";
 import { MonitorSmartphone, Presentation, Shapes, Sparkles } from "lucide-react";
-import type { AppView, ChatThread, ComposerMode, ProviderProfile } from "./types";
+import type {
+  AppView,
+  ChatThread,
+  ComposerMode,
+  Message,
+  PermissionMode,
+  PermissionProfile,
+  ProviderProfile,
+  SettingsSection,
+  ThreadPermissionsBundle,
+} from "./types";
 import { CHAT_SUGGESTIONS, QUICK_ACTIONS, getModeConfig } from "./constants";
 import { loadProfiles, saveProfiles } from "./utils/profiles";
 import { loadThreads, saveThreads } from "./utils/storage";
 import { createEmptyThread, createId, mergeReasoning, summarizeTitle } from "./utils/threads";
-import { fetchModels, generateFollowUps, generateTitle, streamChat, uploadManagedFile } from "./utils/stream";
+import { ensureAuthToken } from "./utils/auth";
+import {
+  fetchThreadPermissions,
+  fetchUserPermissions,
+  promoteThreadPermissions,
+  updateThreadPermissions,
+  updateUserPermissions,
+} from "./utils/permissions";
+import {
+  createRemoteThread,
+  fetchModels,
+  generateFollowUps,
+  generateTitle,
+  importLocalProjectFolder,
+  streamChat,
+  uploadManagedFile,
+} from "./utils/stream";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import ChatArea from "./components/ChatArea";
@@ -17,6 +43,24 @@ import SettingsPage from "./components/SettingsPage";
 type Theme = "dark" | "light";
 
 const THEME_STORAGE_KEY = "ethos-theme";
+const EMPTY_PERMISSION_PROFILE: PermissionProfile = {
+  mode: null,
+  working_directories: [],
+  rules: [],
+};
+
+type PendingPermissionRetry = {
+  localThreadId: string;
+  remoteThreadId: string;
+  assistantMessageId: string;
+  requestMessages: Message[];
+  fileIds: string[];
+  profile: ProviderProfile;
+  model: string;
+  modeInstruction: string;
+  backendMode: "sandbox" | "local";
+  localRootDir?: string;
+};
 
 function getInitialThreads(): ChatThread[] {
   if (typeof window === "undefined") return [];
@@ -51,9 +95,29 @@ function ChatWorkspace() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
   const [appView, setAppView] = useState<AppView>("chat");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>("general");
   const [landingMode, setLandingMode] = useState<ComposerMode>("build");
+  const [userPermissions, setUserPermissions] = useState<PermissionProfile | null>(null);
+  const [permissionsLoading, setPermissionsLoading] = useState(false);
+  const [permissionsError, setPermissionsError] = useState("");
+  const [threadPermissions, setThreadPermissions] = useState<ThreadPermissionsBundle | null>(null);
+  const [defaultBackendMode, setDefaultBackendMode] = useState<"sandbox" | "local">("sandbox");
+  const [defaultLocalRootDir, setDefaultLocalRootDir] = useState("");
   const abortRef = useRef<AbortController | null>(null);
   const reasoningStartRef = useRef<number | null>(null);
+  const pendingPermissionRetriesRef = useRef<Record<string, PendingPermissionRetry>>({});
+  const activeThread = threads.find((thread) => thread.id === threadId) ?? null;
+  const hasMessages = (activeThread?.messages.length ?? 0) > 0;
+  const activeProfile =
+    profiles.find((p) => p.id === (activeThread?.profileId ?? activeProfileId)) ??
+    profiles.find((p) => p.id === activeProfileId) ??
+    profiles[0] ??
+    null;
+  const activeModel = activeProfile?.model ?? activeThread?.model ?? "";
+  const activeMode = activeThread?.mode ?? landingMode;
+  const activeBackendMode = activeThread?.backendMode ?? defaultBackendMode;
+  const activeLocalRootDir = activeThread?.localRootDir ?? defaultLocalRootDir;
+  const modeConfig = getModeConfig(activeMode);
 
   useEffect(() => {
     saveThreads(threads);
@@ -67,7 +131,8 @@ function ChatWorkspace() {
   // Connectivity check — keep fetching /v1/models but don't use result for selector
   useEffect(() => {
     const controller = new AbortController();
-    fetchModels(controller.signal)
+    ensureAuthToken()
+      .then(() => fetchModels(controller.signal))
       .then((items) => {
         setStatus(items.length > 0 ? "Connected" : "Connected (no server models)");
       })
@@ -76,6 +141,43 @@ function ChatWorkspace() {
       });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setPermissionsLoading(true);
+    setPermissionsError("");
+    ensureAuthToken()
+      .then(() => fetchUserPermissions(controller.signal))
+      .then((profile) => {
+        setUserPermissions(profile);
+      })
+      .catch((fetchError) => {
+        setPermissionsError(
+          fetchError instanceof Error ? fetchError.message : "Failed to load security settings.",
+        );
+      })
+      .finally(() => {
+        setPermissionsLoading(false);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const remoteThreadId = activeThread?.remoteId;
+    if (!remoteThreadId) {
+      setThreadPermissions(null);
+      return;
+    }
+    const controller = new AbortController();
+    fetchThreadPermissions(remoteThreadId, controller.signal)
+      .then((bundle) => {
+        setThreadPermissions(bundle);
+      })
+      .catch(() => {
+        setThreadPermissions(null);
+      });
+    return () => controller.abort();
+  }, [activeThread?.remoteId]);
 
   // Fallback: if active profile was deleted, select first available
   useEffect(() => {
@@ -89,17 +191,6 @@ function ChatWorkspace() {
       navigate("/app", { replace: true });
     }
   }, [navigate, threadId, threads]);
-
-  const activeThread = threads.find((thread) => thread.id === threadId) ?? null;
-  const hasMessages = (activeThread?.messages.length ?? 0) > 0;
-  const activeProfile =
-    profiles.find((p) => p.id === (activeThread?.profileId ?? activeProfileId)) ??
-    profiles.find((p) => p.id === activeProfileId) ??
-    profiles[0] ??
-    null;
-  const activeModel = activeProfile?.model ?? activeThread?.model ?? "";
-  const activeMode = activeThread?.mode ?? landingMode;
-  const modeConfig = getModeConfig(activeMode);
   const quickActionIcons = [Presentation, Shapes, MonitorSmartphone, Sparkles];
   const quickActionStyles =
     theme === "dark"
@@ -217,6 +308,7 @@ function ChatWorkspace() {
     setDraft("");
     setError("");
     setStatus("New conversation ready");
+    setThreadPermissions(null);
     navigate("/app");
   }
 
@@ -258,8 +350,230 @@ function ChatWorkspace() {
     setLandingMode(mode);
   }
 
+  function handleBackendModeChange(mode: "sandbox" | "local") {
+    if (activeThread) {
+      updateThread(activeThread.id, (thread) => ({
+        ...thread,
+        backendMode: mode,
+        localRootDir: mode === "local" ? "" : "",
+        updatedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+    setDefaultBackendMode(mode);
+    if (mode === "local") {
+      setDefaultLocalRootDir("");
+    }
+  }
+
+  function handleLocalRootDirChange(dir: string) {
+    if (activeThread) {
+      updateThread(activeThread.id, (thread) => ({
+        ...thread,
+        localRootDir: dir,
+        updatedAt: new Date().toISOString(),
+      }));
+    } else {
+      setDefaultLocalRootDir(dir);
+    }
+  }
+
+  async function handleImportLocalProject() {
+    setError("");
+    setStatus("Selecting local project folder...");
+    try {
+      const { root_dir } = await importLocalProjectFolder();
+      if (activeThread) {
+        updateThread(activeThread.id, (thread) => ({
+          ...thread,
+          backendMode: "local",
+          localRootDir: root_dir,
+          updatedAt: new Date().toISOString(),
+        }));
+      } else {
+        setDefaultBackendMode("local");
+        setDefaultLocalRootDir(root_dir);
+      }
+      setStatus("Local project selected");
+    } catch (importError) {
+      const message = importError instanceof Error ? importError.message : "Failed to select folder";
+      if (activeThread) {
+        updateThread(activeThread.id, (thread) => ({
+          ...thread,
+          localRootDir: "",
+          updatedAt: new Date().toISOString(),
+        }));
+      } else {
+        setDefaultLocalRootDir("");
+      }
+      setError(message);
+      setStatus("Folder selection failed");
+    }
+  }
+
   function injectSuggestion(text: string) {
     setDraft(text);
+  }
+
+  function resetAssistantMessage(threadLocalId: string, assistantMessageId: string) {
+    updateThread(threadLocalId, (thread) => ({
+      ...thread,
+      messages: thread.messages.map((message) =>
+        message.id === assistantMessageId
+          ? {
+              ...message,
+              content: "",
+              reasoning: "",
+              toolEvents: [],
+              error: undefined,
+              permissionRequest: undefined,
+              thinkingDuration: undefined,
+              status: "streaming",
+            }
+          : message,
+      ),
+      updatedAt: new Date().toISOString(),
+    }));
+  }
+
+  async function retryPendingPermissionRequest(
+    assistantMessageId: string,
+    options: { persistMode?: PermissionMode; oneShotMode?: PermissionMode },
+  ) {
+    const pending = pendingPermissionRetriesRef.current[assistantMessageId];
+    if (!pending) {
+      throw new Error("The blocked action is no longer available to retry.");
+    }
+
+    let activeThreadPermissions = threadPermissions;
+    if (options.persistMode) {
+      activeThreadPermissions = await updateThreadPermissions(pending.remoteThreadId, {
+        ...(activeThreadPermissions?.overlay ?? EMPTY_PERMISSION_PROFILE),
+        mode: options.persistMode,
+        working_directories: [...(activeThreadPermissions?.overlay.working_directories ?? [])],
+        rules: [...(activeThreadPermissions?.overlay.rules ?? [])],
+      });
+      setThreadPermissions(activeThreadPermissions);
+    }
+
+    resetAssistantMessage(pending.localThreadId, assistantMessageId);
+    setError("");
+    setStatus("Retrying blocked action...");
+    setIsStreaming(true);
+
+    let sawPermissionRequest = false;
+    let sawContent = false;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    reasoningStartRef.current = null;
+
+    try {
+      const backendMetadata = {
+        backend: {
+          mode: pending.backendMode,
+          root_dir: pending.backendMode === "local" ? pending.localRootDir : undefined,
+        },
+      };
+      await streamChat({
+        model: pending.model,
+        messages: pending.requestMessages,
+        modeInstruction: pending.modeInstruction,
+        threadId: pending.remoteThreadId,
+        fileIds: pending.fileIds,
+        profile: pending.profile,
+        signal: controller.signal,
+        extraMetadata: options.oneShotMode
+          ? { ...backendMetadata, permission_override: { mode: options.oneShotMode } }
+          : backendMetadata,
+        onContent: (chunk) => {
+          sawContent = true;
+          updateThread(pending.localThreadId, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((message) =>
+              message.id === assistantMessageId
+                ? {
+                    ...message,
+                    content: `${message.content}${chunk}`,
+                    permissionRequest: undefined,
+                  }
+                : message,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
+        onReasoning: (chunk) => {
+          if (!reasoningStartRef.current) {
+            reasoningStartRef.current = Date.now();
+          }
+
+          updateThread(pending.localThreadId, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((message) =>
+              message.id === assistantMessageId
+                ? { ...mergeReasoning(message, chunk), permissionRequest: undefined }
+                : message,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
+        onPermissionRequest: (request) => {
+          sawPermissionRequest = true;
+          updateThread(pending.localThreadId, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, permissionRequest: request, status: "done" }
+                : message,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
+      });
+
+      const thinkingDuration = reasoningStartRef.current
+        ? Math.round((Date.now() - reasoningStartRef.current) / 1000)
+        : undefined;
+      reasoningStartRef.current = null;
+
+      updateThread(pending.localThreadId, (thread) => ({
+        ...thread,
+        messages: thread.messages.map((message) =>
+          message.id === assistantMessageId ? { ...message, status: "done", thinkingDuration } : message,
+        ),
+        updatedAt: new Date().toISOString(),
+      }));
+      if (!sawPermissionRequest && sawContent) {
+        delete pendingPermissionRetriesRef.current[assistantMessageId];
+      }
+      setStatus(sawPermissionRequest ? "Permission still required" : "Ready");
+    } catch (retryError) {
+      delete pendingPermissionRetriesRef.current[assistantMessageId];
+      const message =
+        retryError instanceof DOMException && retryError.name === "AbortError"
+          ? "Retry stopped"
+          : retryError instanceof Error
+            ? retryError.message
+            : "Retry failed";
+      updateThread(pending.localThreadId, (thread) => ({
+        ...thread,
+        messages: thread.messages.map((item) =>
+          item.id === assistantMessageId
+            ? {
+                ...item,
+                status: "error",
+                error: message,
+                content: item.content || "The assistant did not return any text.",
+              }
+            : item,
+        ),
+      }));
+      setError(message);
+      setStatus("Error");
+      throw retryError;
+    } finally {
+      abortRef.current = null;
+      setIsStreaming(false);
+    }
   }
 
   async function handleUploadFiles(files: File[]) {
@@ -278,6 +592,8 @@ function ChatWorkspace() {
           {
             ...nextThread,
             profileId: activeProfileId,
+            backendMode: activeBackendMode,
+            localRootDir: activeBackendMode === "local" ? activeLocalRootDir : "",
             attachments: uploaded,
             updatedAt: new Date().toISOString(),
           },
@@ -328,6 +644,11 @@ function ChatWorkspace() {
     const prompt = draft.trim();
     const pendingAttachments = activeThread?.attachments ?? [];
     if ((!prompt && pendingAttachments.length === 0) || !activeProfile || isStreaming || isUploading) return;
+    if (activeBackendMode === "local" && !activeLocalRootDir.trim()) {
+      setError("Please enter a local project root directory before using Local project backend.");
+      setStatus("Local project path required");
+      return;
+    }
 
     setError("");
     setStatus(`Running in ${modeConfig.label.toLowerCase()} mode`);
@@ -335,6 +656,8 @@ function ChatWorkspace() {
     const now = new Date().toISOString();
     const baseThread = activeThread ?? createEmptyThread(activeModel, activeMode);
     if (!baseThread.profileId) baseThread.profileId = activeProfileId;
+    if (!baseThread.backendMode) baseThread.backendMode = activeBackendMode;
+    baseThread.localRootDir = activeBackendMode === "local" ? activeLocalRootDir : "";
     const userMsg = {
       id: createId("msg"),
       role: "user" as const,
@@ -352,14 +675,16 @@ function ChatWorkspace() {
       status: "streaming" as const,
     };
     const nextMessages = [...baseThread.messages, userMsg, assistantMsg];
-      const nextThread: ChatThread = {
-        ...baseThread,
-        model: activeModel,
-        mode: activeMode,
-        title: baseThread.messages.length === 0 ? summarizeTitle(prompt) : baseThread.title,
-        messages: nextMessages,
-        updatedAt: now,
-      };
+    const nextThread: ChatThread = {
+      ...baseThread,
+      model: activeModel,
+      mode: activeMode,
+      backendMode: activeBackendMode,
+      localRootDir: activeBackendMode === "local" ? activeLocalRootDir : "",
+      title: baseThread.messages.length === 0 ? summarizeTitle(prompt) : baseThread.title,
+      messages: nextMessages,
+      updatedAt: now,
+    };
 
     setThreads((current) => {
       const existingIndex = current.findIndex((thread) => thread.id === nextThread.id);
@@ -382,20 +707,52 @@ function ChatWorkspace() {
     reasoningStartRef.current = null;
 
     try {
+      const remoteThreadId = nextThread.remoteId ?? (await createRemoteThread(controller.signal));
+      if (!nextThread.remoteId) {
+        updateThread(nextThread.id, (thread) => ({
+          ...thread,
+          remoteId: remoteThreadId,
+          updatedAt: new Date().toISOString(),
+        }));
+      }
+      const currentThreadPermissions = await fetchThreadPermissions(remoteThreadId, controller.signal);
+      setThreadPermissions(currentThreadPermissions);
+      pendingPermissionRetriesRef.current[assistantMsg.id] = {
+        localThreadId: nextThread.id,
+        remoteThreadId,
+        assistantMessageId: assistantMsg.id,
+        requestMessages: nextMessages.slice(0, -1),
+        fileIds: pendingAttachments.map((attachment) => attachment.id),
+        profile: activeProfile,
+        model: activeModel,
+        modeInstruction: modeConfig.instruction,
+        backendMode: activeBackendMode,
+        localRootDir: activeBackendMode === "local" ? activeLocalRootDir : undefined,
+      };
+      let sawPermissionRequest = false;
+      let sawContent = false;
+
       await streamChat({
         model: activeModel,
         messages: nextMessages,
         modeInstruction: modeConfig.instruction,
-        sessionId: nextThread.id,
+        threadId: remoteThreadId,
         fileIds: pendingAttachments.map((attachment) => attachment.id),
         profile: activeProfile,
         signal: controller.signal,
+        extraMetadata: {
+          backend: {
+            mode: activeBackendMode,
+            root_dir: activeBackendMode === "local" ? activeLocalRootDir : undefined,
+          },
+        },
         onContent: (chunk) => {
+          sawContent = true;
           updateThread(nextThread.id, (thread) => ({
             ...thread,
             messages: thread.messages.map((message) =>
               message.id === assistantMsg.id
-                ? { ...message, content: `${message.content}${chunk}` }
+                ? { ...message, content: `${message.content}${chunk}`, permissionRequest: undefined }
                 : message,
             ),
             updatedAt: new Date().toISOString(),
@@ -409,7 +766,21 @@ function ChatWorkspace() {
           updateThread(nextThread.id, (thread) => ({
             ...thread,
             messages: thread.messages.map((message) =>
-              message.id === assistantMsg.id ? mergeReasoning(message, chunk) : message,
+              message.id === assistantMsg.id
+                ? { ...mergeReasoning(message, chunk), permissionRequest: undefined }
+                : message,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
+        onPermissionRequest: (request) => {
+          sawPermissionRequest = true;
+          updateThread(nextThread.id, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((message) =>
+              message.id === assistantMsg.id
+                ? { ...message, permissionRequest: request }
+                : message,
             ),
             updatedAt: new Date().toISOString(),
           }));
@@ -428,6 +799,9 @@ function ChatWorkspace() {
         ),
         updatedAt: new Date().toISOString(),
       }));
+      if (!sawPermissionRequest && sawContent) {
+        delete pendingPermissionRetriesRef.current[assistantMsg.id];
+      }
       void hydrateThreadMetadata(
         {
           ...nextThread,
@@ -441,6 +815,7 @@ function ChatWorkspace() {
       );
       setStatus("Ready");
     } catch (err: unknown) {
+      delete pendingPermissionRetriesRef.current[assistantMsg.id];
       const msg =
         err instanceof DOMException && err.name === "AbortError"
           ? "Generation stopped"
@@ -485,6 +860,83 @@ function ChatWorkspace() {
     saveProfiles(nextProfiles);
   }
 
+  function openSettings(section: SettingsSection = "general") {
+    setSettingsSection(section);
+    setAppView("settings");
+  }
+
+  async function handlePermissionsSave(profile: PermissionProfile) {
+    setPermissionsLoading(true);
+    setPermissionsError("");
+    try {
+      const saved = await updateUserPermissions(profile);
+      setUserPermissions(saved);
+      if (activeThread?.remoteId) {
+        const bundle = await fetchThreadPermissions(activeThread.remoteId);
+        setThreadPermissions(bundle);
+      }
+    } catch (saveError) {
+      const message =
+        saveError instanceof Error ? saveError.message : "Failed to save security settings.";
+      setPermissionsError(message);
+      throw saveError;
+    } finally {
+      setPermissionsLoading(false);
+    }
+  }
+
+  async function handleSetThreadMode(mode: PermissionMode) {
+    const remoteThreadId = activeThread?.remoteId;
+    if (!remoteThreadId) {
+      throw new Error("Start a remote thread before updating thread permissions.");
+    }
+    const nextOverlay: PermissionProfile = {
+      ...(threadPermissions?.overlay ?? EMPTY_PERMISSION_PROFILE),
+      mode,
+      working_directories: [...(threadPermissions?.overlay.working_directories ?? [])],
+      rules: [...(threadPermissions?.overlay.rules ?? [])],
+    };
+    const bundle = await updateThreadPermissions(remoteThreadId, nextOverlay);
+    startTransition(() => {
+      setThreadPermissions(bundle);
+    });
+  }
+
+  async function handleApproveOnce(messageId: string) {
+    const pending = pendingPermissionRetriesRef.current[messageId];
+    if (!pending) {
+      throw new Error("No blocked action is available to approve.");
+    }
+    const existingRequest =
+      threads
+        .find((thread) => thread.id === pending.localThreadId)
+        ?.messages.find((message) => message.id === messageId)?.permissionRequest;
+    await retryPendingPermissionRequest(messageId, {
+      oneShotMode: existingRequest?.suggested_thread_mode ?? "bypass_permissions",
+    });
+  }
+
+  async function handleApproveForChat(messageId: string, mode: PermissionMode) {
+    await retryPendingPermissionRequest(messageId, { persistMode: mode });
+  }
+
+  async function handleBypassForChat(messageId: string) {
+    await retryPendingPermissionRequest(messageId, { persistMode: "bypass_permissions" });
+  }
+
+  async function handlePromoteThreadPermissions() {
+    const remoteThreadId = activeThread?.remoteId;
+    if (!remoteThreadId) {
+      throw new Error("Start a remote thread before saving thread permissions.");
+    }
+    const savedDefaults = await promoteThreadPermissions(remoteThreadId);
+    const bundle = await fetchThreadPermissions(remoteThreadId);
+    startTransition(() => {
+      setUserPermissions(savedDefaults);
+      setThreadPermissions(bundle);
+    });
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--app-bg)] text-[var(--text-primary)]">
       <Sidebar
@@ -495,7 +947,7 @@ function ChatWorkspace() {
         onDeleteThread={handleDeleteThread}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed((value) => !value)}
-        onOpenSettings={() => setAppView("settings")}
+        onOpenSettings={() => openSettings("general")}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -504,6 +956,10 @@ function ChatWorkspace() {
           profiles={profiles}
           activeProfileId={activeProfileId}
           onProfileChange={handleProfileChange}
+          backendMode={activeBackendMode}
+          localRootDir={activeLocalRootDir}
+          onBackendModeChange={handleBackendModeChange}
+          onImportLocalProject={handleImportLocalProject}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           showConversationActions={hasMessages}
@@ -511,7 +967,16 @@ function ChatWorkspace() {
 
         {hasMessages ? (
           <>
-            <ChatArea thread={activeThread} onFollowUpClick={injectSuggestion} />
+            <ChatArea
+              thread={activeThread}
+              onFollowUpClick={injectSuggestion}
+              threadPermissions={threadPermissions}
+              onApproveOnce={handleApproveOnce}
+              onApproveForChat={handleApproveForChat}
+              onBypassForChat={handleBypassForChat}
+              onPromoteThreadPermissions={handlePromoteThreadPermissions}
+              onOpenSecuritySettings={() => openSettings("security")}
+            />
 
             <Composer
               draft={draft}
@@ -608,6 +1073,11 @@ function ChatWorkspace() {
           profiles={profiles}
           activeProfileId={activeProfileId}
           onProfilesSave={handleProfilesSave}
+          initialSection={settingsSection}
+          userPermissions={userPermissions}
+          permissionsLoading={permissionsLoading}
+          permissionsError={permissionsError}
+          onPermissionsSave={handlePermissionsSave}
         />
       ) : null}
     </div>

@@ -1,9 +1,9 @@
-"""Tests for todo_write tool (TodoWriteTool port)."""
+﻿"""Tests for todo_write tool (TodoWriteTool port)."""
 from __future__ import annotations
 
 import json
-from src.tools._store import ToolStore
-from src.tools.todo.todo_write import build_todo_write_tool
+from src.ai.tools._store import ToolStore
+from src.ai.tools.todo.todo_write import build_todo_write_tool
 
 
 ITEM_A = {"content": "Write tests", "status": "pending", "priority": "high"}
@@ -43,3 +43,4 @@ def test_todo_write_replaces_previous() -> None:
     todos = store.read_todos()
     assert len(todos) == 1
     assert todos[0]["content"] == "Run CI"
+

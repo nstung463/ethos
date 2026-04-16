@@ -1,10 +1,10 @@
-"""Tests for task management tools (TaskCreate/Get/List/Update/Stop/Output)."""
+﻿"""Tests for task management tools (TaskCreate/Get/List/Update/Stop/Output)."""
 from __future__ import annotations
 
 import json
 import pytest
-from src.tools._store import ToolStore, TaskStatus
-from src.tools.task import (
+from src.ai.tools._store import ToolStore, TaskStatus
+from src.ai.tools.task import (
     build_task_create_tool, build_task_get_tool, build_task_list_tool,
     build_task_update_tool, build_task_stop_tool, build_task_output_tool,
 )
@@ -126,3 +126,4 @@ def test_task_output_empty(store: ToolStore) -> None:
     tool = build_task_output_tool(store)
     result = tool.invoke({"task_id": record.id})
     assert result == "(no output yet)"
+

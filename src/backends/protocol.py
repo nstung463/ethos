@@ -6,8 +6,9 @@ Backends only need to implement three primitives:
   - upload_files([(path, bytes)]) → write bytes to sandbox paths
   - download_files([path]) → read bytes from sandbox paths
 
-All higher-level operations (ls, read, write, edit, glob, grep) are derived
-from those three primitives in BaseSandbox.
+Some backends derive higher-level filesystem operations (ls, read, write, edit,
+glob, grep) from those three primitives via a command-backed base class, while
+others implement them natively.
 """
 
 from __future__ import annotations
@@ -87,6 +88,15 @@ class LsResult:
     error: str | None = None
 
 
+@dataclass
+class PathInfo:
+    path: str
+    exists: bool
+    is_file: bool
+    is_dir: bool
+    size: int | None = None
+
+
 # ── Protocol ───────────────────────────────────────────────────────────────────
 
 @runtime_checkable
@@ -118,4 +128,34 @@ class SandboxProtocol(Protocol):
     @abstractmethod
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]:
         """Read files from the sandbox. Paths must be absolute."""
+        ...
+
+
+@runtime_checkable
+class FilesystemBackendProtocol(SandboxProtocol, Protocol):
+    """Low-level filesystem primitives used by higher-level filesystem tools."""
+
+    @abstractmethod
+    def read_bytes(self, path: str) -> FileDownloadResponse:
+        """Read raw bytes from a backend-relative path."""
+        ...
+
+    @abstractmethod
+    def write_bytes(self, path: str, content: bytes) -> FileUploadResponse:
+        """Write raw bytes to a backend-relative path."""
+        ...
+
+    @abstractmethod
+    def stat_path(self, path: str) -> PathInfo:
+        """Return basic metadata for a backend-relative path."""
+        ...
+
+    @abstractmethod
+    def list_dir(self, path: str) -> LsResult:
+        """List one directory level for a backend-relative path."""
+        ...
+
+    @abstractmethod
+    def walk(self, path: str) -> list[LsEntry]:
+        """Recursively walk a backend-relative path and return entries."""
         ...

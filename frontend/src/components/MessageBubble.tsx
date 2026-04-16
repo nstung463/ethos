@@ -1,20 +1,41 @@
-import type { Message } from "../types";
+import type { Message, PermissionMode, ThreadPermissionsBundle } from "../types";
 import FollowUps from "./FollowUps";
 import MessageContent from "./MessageContent";
+import PermissionPromptCard from "./PermissionPromptCard";
 import ThinkingPanel from "./ThinkingPanel";
 import TypingIndicator from "./TypingIndicator";
+import { parsePermissionPromptFromContent } from "../utils/threads";
 
 export default function MessageBubble({
   message,
   isLastMessage,
   onFollowUpClick,
+  threadPermissions,
+  onApproveOnce,
+  onApproveForChat,
+  onBypassForChat,
+  onPromoteThreadPermissions,
+  onOpenSecuritySettings,
 }: {
   message: Message;
   isLastMessage: boolean;
   onFollowUpClick: (prompt: string) => void;
+  threadPermissions: ThreadPermissionsBundle | null;
+  onApproveOnce: (messageId: string) => Promise<void>;
+  onApproveForChat: (messageId: string, mode: PermissionMode) => Promise<void>;
+  onBypassForChat: (messageId: string) => Promise<void>;
+  onPromoteThreadPermissions: () => Promise<void>;
+  onOpenSecuritySettings: () => void;
 }) {
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
+  const permissionPrompt =
+    message.role === "assistant"
+      ? message.permissionRequest ?? parsePermissionPromptFromContent(message.content)
+      : null;
+  const shouldHidePermissionProse =
+    permissionPrompt !== null &&
+    /approval|would you like to proceed|need your approval|approve/i.test(message.content);
 
   if (isUser) {
     return (
@@ -29,7 +50,9 @@ export default function MessageBubble({
     );
   }
 
-  const hasThinking = (message.reasoning && message.reasoning.trim().length > 0) || (message.toolEvents && message.toolEvents.length > 0);
+  const hasThinking =
+    (message.reasoning && message.reasoning.trim().length > 0) ||
+    (!permissionPrompt && message.toolEvents && message.toolEvents.length > 0);
 
   return (
     <div className="flex gap-2 px-4 py-1 sm:gap-3">
@@ -46,20 +69,38 @@ export default function MessageBubble({
         {hasThinking ? (
           <ThinkingPanel
             reasoning={message.reasoning}
-            toolEvents={message.toolEvents}
+            toolEvents={permissionPrompt ? [] : message.toolEvents}
             isStreaming={isStreaming}
             thinkingDuration={message.thinkingDuration}
           />
         ) : null}
 
         <div className="leading-7 text-[var(--text-primary)]" style={{ fontSize: "var(--message-text-size)" }}>
-          {message.content ? <MessageContent content={message.content} /> : isStreaming && !hasThinking ? <TypingIndicator /> : null}
+          {shouldHidePermissionProse || permissionPrompt
+            ? null
+            : message.content
+              ? <MessageContent content={message.content} />
+              : isStreaming && !hasThinking
+                ? <TypingIndicator />
+                : null}
         </div>
 
         {message.error ? (
           <div className="mt-2 rounded-lg border px-3 py-2 text-xs text-[var(--danger)]" style={{ background: "var(--danger-bg)", borderColor: "var(--danger-border)" }}>
             {message.error}
           </div>
+        ) : null}
+
+        {permissionPrompt ? (
+          <PermissionPromptCard
+            prompt={permissionPrompt}
+            threadPermissions={threadPermissions}
+            onApproveOnce={() => onApproveOnce(message.id)}
+            onApproveForChat={(mode) => onApproveForChat(message.id, mode)}
+            onBypassForChat={() => onBypassForChat(message.id)}
+            onPromoteThreadPermissions={onPromoteThreadPermissions}
+            onOpenSecuritySettings={onOpenSecuritySettings}
+          />
         ) : null}
 
         {isLastMessage && message.status === "done" && (message.followUps?.length ?? 0) > 0 ? (

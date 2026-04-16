@@ -1,4 +1,4 @@
-"""Tests for OpenTerminalSandbox backend."""
+"""Tests for OpenTerminalBackend."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from src.backends.open_terminal import OpenTerminalSandbox, _join_output
+from src.backends.open_terminal import OpenTerminalBackend, _join_output
 
 
 # ── Helper: Create proper responses ────────────────────────────────────────
@@ -76,9 +76,9 @@ def test_join_output_missing_data_field():
 
 
 def test_backend_initialization():
-    """Test OpenTerminalSandbox initialization."""
+    """Test OpenTerminalBackend initialization."""
     with patch("src.backends.open_terminal.httpx.Client"):
-        backend = OpenTerminalSandbox(
+        backend = OpenTerminalBackend(
             base_url="http://localhost:8000",
             api_key="test-key",
         )
@@ -90,7 +90,7 @@ def test_backend_initialization():
 def test_backend_with_user_id():
     """Test that user_id is passed to headers."""
     with patch("src.backends.open_terminal.httpx.Client") as mock_client_class:
-        backend = OpenTerminalSandbox(
+        backend = OpenTerminalBackend(
             base_url="http://localhost:8000",
             api_key="key",
             user_id="user-123",
@@ -104,7 +104,7 @@ def test_backend_with_user_id():
 def test_backend_id_stable():
     """Test that backend ID is stable."""
     with patch("src.backends.open_terminal.httpx.Client"):
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         id1 = backend.id
         id2 = backend.id
         assert id1 == id2
@@ -133,7 +133,7 @@ def test_execute_success():
             },
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         result = backend.execute("echo hello")
 
@@ -159,7 +159,7 @@ def test_execute_with_timeout():
             },
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         result = backend.execute("test", timeout=60)
 
@@ -186,7 +186,7 @@ def test_execute_max_timeout_capped():
             },
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         backend.execute("test", timeout=400)
 
@@ -227,7 +227,7 @@ def test_execute_polls_when_running():
             },
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         result = backend.execute("slow_cmd")
 
@@ -244,7 +244,7 @@ def test_execute_timeout_error():
         mock_client_class.return_value = mock_client
         mock_client.post.side_effect = httpx.TimeoutException("timeout")
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         result = backend.execute("test")
 
@@ -265,7 +265,7 @@ def test_execute_http_error():
             response=_make_response(403),
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
         result = backend.execute("test")
 
@@ -286,7 +286,7 @@ def test_upload_files_success():
             json_data={"path": "/test.txt", "size": 11},
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.upload_files([("/test.txt", b"hello world")])
@@ -309,7 +309,7 @@ def test_upload_files_error():
             response=_make_response(500),
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.upload_files([("/test.txt", b"data")])
@@ -328,7 +328,7 @@ def test_upload_files_binary_content():
             json_data={"path": "/test", "size": 5},
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         # Non-UTF8 bytes should be handled gracefully
@@ -352,7 +352,7 @@ def test_download_files_success():
             headers={"content-type": "application/json"},
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.download_files(["/test.txt"])
@@ -370,7 +370,7 @@ def test_download_files_not_found():
         mock_client_class.return_value = mock_client
         mock_client.get.return_value = _make_response(404)
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.download_files(["/missing.txt"])
@@ -393,7 +393,7 @@ def test_download_files_binary():
             headers={"content-type": "image/png"},
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.download_files(["/image.png"])
@@ -416,7 +416,7 @@ def test_download_files_http_error():
             response=_make_response(500),
         )
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         backend._client = mock_client
 
         responses = backend.download_files(["/test.txt"])
@@ -434,7 +434,7 @@ def test_backend_closes_client():
         mock_client = MagicMock()
         mock_client_class.return_value = mock_client
 
-        backend = OpenTerminalSandbox(api_key="key")
+        backend = OpenTerminalBackend(api_key="key")
         del backend
 
         mock_client.close.assert_called()

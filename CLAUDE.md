@@ -28,19 +28,19 @@ The agent can be deployed in multiple modes:
 - `open_terminal.py` — HTTP-based execution via Open Terminal service
 - `sandbox.py` — Base implementation for file operations
 
-**Tools** (`src/tools/`)
+**Tools** (`src/ai/tools/`)
 - `filesystem/` — Read, write, edit, glob, grep, notebook operations
 - `execute.py` — Execute shell commands in sandbox mode
 - `web.py` — Tavily web search, thinking tool
 
-**Middleware** (`src/middleware/`)
+**Middleware** (`src/ai/middleware/`)
 - `todos.py` — Manages task tracking and progress
 - `skills.py` — Loads and applies custom agent skills from workspace
 - `memory.py` — Persistent context via AGENTS.md file
 
-**API** (`api/`)
+**API** (`src/app/`)
 - `app.py` — FastAPI application factory with CORS middleware
-- `routes/v1/` — OpenAI-compatible chat completion endpoints
+- `routes/` — OpenAI-compatible chat, files, terminals
 - `models/` — Request/response schemas
 
 ### Execution Modes
@@ -53,12 +53,12 @@ The agent runs in two primary ways:
    - Modes: local (default), `--sandbox`, `--daytona`, `--open-terminal`
 
 2. **API Server** (`python main.py`)
-   - OpenAI API compatible (can connect OpenWebUI directly)
+   - OpenAI-compatible surface for the Ethos frontend (`frontend/`) and other clients
    - Streams responses including thinking blocks and tool calls
    - Runs on port 8080
 
 3. **LangGraph Deployment** (`langgraph dev`)
-   - Exposes graph for LangGraph Studio and OpenWebUI
+   - Exposes graph for LangGraph Studio
    - Uses `graph` exported from `ethos.py`
 
 ### Full Stack
@@ -66,7 +66,7 @@ The agent runs in two primary ways:
 Docker Compose (`docker-compose.yml`) orchestrates three services:
 - **ethos-api** — Main agent API (port 8080)
 - **open-terminal** — Execution backend (port 8000)
-- **openwebui** — Web UI frontend (port 3000)
+- **ethos-frontend** — Vite + React UI from `frontend/` (port 3000)
 
 ## Development
 
@@ -163,15 +163,17 @@ ethos/
 │   │   ├── execute.py    # Shell execution in sandbox
 │   │   └── web.py        # Tavily search, thinking tool
 │   │
-│   └── middleware/       # Middleware stack
-│       ├── todos.py      # Task tracking
-│       ├── skills.py     # Skill loading from workspace/skills
-│       └── memory.py     # Context via workspace/AGENTS.md
+│   ├── middleware/       # Middleware stack
+│   │   ├── todos.py      # Task tracking
+│   │   ├── skills.py     # Skill loading from workspace/skills
+│   │   └── memory.py     # Context via workspace/AGENTS.md
+│   │
+│   └── api/              # FastAPI application
+│       ├── app.py        # App factory with CORS
+│       ├── routes/       # v1, files, terminals
+│       └── models/       # Request/response schemas
 │
-├── api/                  # FastAPI application
-│   ├── app.py            # App factory with CORS
-│   ├── routes/           # v1 endpoints
-│   └── models/           # Request/response schemas
+├── frontend/             # Ethos web UI (Vite + React)
 │
 ├── tests/                # Test suite
 │   ├── conftest.py       # pytest fixtures
@@ -243,7 +245,7 @@ The API streams responses with:
 - `delta.content` — Text tokens
 - `delta.reasoning_content` — Thinking blocks + tool call status
 
-OpenWebUI consumes these streams for real-time display.
+The Ethos frontend consumes these streams for real-time display.
 
 ## Dependencies
 
@@ -292,7 +294,7 @@ docker build -t ethos-api:latest .
 ```bash
 docker-compose logs -f ethos-api
 docker-compose logs -f open-terminal
-docker-compose logs -f openwebui
+docker-compose logs -f ethos-frontend
 ```
 
 **Stop stack:**

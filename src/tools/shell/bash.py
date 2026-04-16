@@ -7,7 +7,10 @@ import shlex
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
+from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.shell_policy import ShellPolicy
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
 
 
 class BashInput(BaseModel):
@@ -27,14 +30,29 @@ class BashInput(BaseModel):
     )
 
 
-def build_bash_tool(backend: BaseSandbox) -> StructuredTool:
+def build_bash_tool(
+    backend: SandboxProtocol,
+    permission_context: PermissionContext | None = None,
+) -> StructuredTool:
     """Build the bash tool when the backend supports POSIX shell execution."""
+    policy = ShellPolicy()
+    evaluator = PermissionEvaluator()
 
     def _bash(command: str, timeout: int | None = None, background: bool = False) -> str:
         if "bash" not in backend.supported_shells:
             return "Error: bash is not supported by the active backend."
         if background:
             return "Error: background execution is not supported by the bash tool yet."
+
+        if permission_context is not None:
+            decision = evaluator.evaluate(
+                context=permission_context,
+                subject=PermissionSubject.BASH,
+                candidate=command,
+                policy_decision=policy.check_bash(context=permission_context, command=command),
+            )
+            if decision.behavior is not PermissionBehavior.ALLOW:
+                return f"Permission {decision.behavior.value}: {decision.reason}"
 
         wrapped = f"bash -lc {shlex.quote(command)}"
         result = backend.execute(wrapped, timeout=timeout)

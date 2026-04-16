@@ -10,6 +10,9 @@ from pathlib import Path
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
+from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.filesystem_policy import FilesystemPolicy
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
 from src.tools.filesystem._sandbox import resolve
 
 
@@ -53,10 +56,26 @@ def _edit_notebook(root: Path, path: str, cell_index: int, new_source: str) -> s
     return f"Edited cell {cell_index} in '{path}'."
 
 
-def build_notebook_edit_tool(root: Path) -> StructuredTool:
+def build_notebook_edit_tool(root: Path, permission_context: PermissionContext | None = None) -> StructuredTool:
+    policy = FilesystemPolicy()
+    evaluator = PermissionEvaluator()
+
+    def _tool(path: str, cell_index: int, new_source: str) -> str:
+        target = resolve(root, path)
+        if permission_context is not None:
+            decision = evaluator.evaluate(
+                context=permission_context,
+                subject=PermissionSubject.EDIT,
+                candidate=path,
+                policy_decision=policy.check_edit(context=permission_context, target=target),
+            )
+            if decision.behavior is not PermissionBehavior.ALLOW:
+                return f"Permission {decision.behavior.value}: {decision.reason}"
+        return _edit_notebook(root, path, cell_index, new_source)
+
     return StructuredTool.from_function(
         name="notebook_edit",
-        func=lambda path, cell_index, new_source: _edit_notebook(root, path, cell_index, new_source),
+        func=_tool,
         description=(
             "Edit the source of a Jupyter notebook cell by its index. "
             "Read the notebook first to identify cell indices. "

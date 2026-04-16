@@ -36,6 +36,40 @@ export type Attachment = {
   size?: number;
 };
 
+export type PermissionMode =
+  | "default"
+  | "accept_edits"
+  | "bypass_permissions"
+  | "dont_ask";
+
+export type PermissionSubject = "read" | "edit" | "bash" | "powershell";
+export type PermissionBehavior = "allow" | "ask" | "deny";
+
+export type PermissionRuleInput = {
+  subject: PermissionSubject;
+  behavior: PermissionBehavior;
+  matcher?: string | null;
+};
+
+export type PermissionRequest = {
+  behavior: "ask" | "deny";
+  reason: string;
+  tool_name?: string;
+  suggested_thread_mode?: PermissionMode;
+};
+
+export type PermissionProfile = {
+  mode: PermissionMode | null;
+  working_directories: string[];
+  rules: PermissionRuleInput[];
+};
+
+export type ThreadPermissionsBundle = {
+  defaults: PermissionProfile;
+  overlay: PermissionProfile;
+  effective: PermissionProfile;
+};
+
 export type Role = "user" | "assistant" | "system";
 export type ComposerMode = "build" | "review" | "explain";
 
@@ -50,13 +84,17 @@ export type Message = {
   status?: "streaming" | "done" | "error";
   error?: string;
   thinkingDuration?: number; // seconds
+  permissionRequest?: PermissionRequest;
 };
 
 export type ChatThread = {
   id: string;
+  remoteId?: string;
   title: string;
   model: string;
   profileId?: string;
+  backendMode?: "sandbox" | "local";
+  localRootDir?: string;
   mode: ComposerMode;
   messages: Message[];
   attachments: Attachment[];
@@ -68,6 +106,7 @@ export type StreamChunk = {
     delta?: {
       content?: string;
       reasoning_content?: string;
+      permission_request?: PermissionRequest;
     };
     finish_reason?: string | null;
   }>;

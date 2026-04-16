@@ -1,9 +1,9 @@
-"""Smoke test: all tool builders importable from src.tools."""
+﻿"""Smoke test: all tool builders importable from src.ai.tools."""
 from __future__ import annotations
 
 
 def test_all_tools_importable() -> None:
-    from src.tools import (
+    from src.ai.tools import (
         # Store
         ToolStore, TaskStatus, TaskRecord,
         # Filesystem
@@ -31,8 +31,15 @@ def test_all_tools_importable() -> None:
     assert True
 
 
+def test_build_filesystem_tools_from_root_dir(tmp_path) -> None:
+    from src.ai.tools import build_filesystem_tools
+
+    tools = build_filesystem_tools(root_dir=str(tmp_path))
+    assert [tool.name for tool in tools] == ["ls", "read_file", "write_file", "edit_file", "glob", "grep"]
+
+
 def test_build_all_stateful_tools() -> None:
-    from src.tools import (
+    from src.ai.tools import (
         ToolStore,
         build_todo_write_tool,
         build_task_create_tool, build_task_get_tool, build_task_list_tool,
@@ -58,12 +65,13 @@ def test_build_all_stateful_tools() -> None:
 
 
 def test_web_fetch_importable_from_root() -> None:
-    from src.tools import web_fetch_tool
+    from src.ai.tools import web_fetch_tool
     assert web_fetch_tool.name == "web_fetch"
 
 
 def test_store_importable_from_root() -> None:
-    from src.tools import ToolStore, TaskStatus
+    from src.ai.tools import ToolStore, TaskStatus
     store = ToolStore()
     task = store.create_task(subject="Test", description="desc")
     assert task.status == TaskStatus.PENDING
+

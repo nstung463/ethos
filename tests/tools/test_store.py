@@ -1,7 +1,7 @@
-"""Tests for ToolStore."""
+﻿"""Tests for ToolStore."""
 from __future__ import annotations
 
-from src.tools._store import TaskRecord, TaskStatus, ToolStore
+from src.ai.tools._store import TaskRecord, TaskStatus, ToolStore
 
 
 def test_store_create_task() -> None:
@@ -52,3 +52,4 @@ def test_store_append_task_output() -> None:
     store.append_output(task.id, "line1\n")
     store.append_output(task.id, "line2\n")
     assert store.get_output(task.id) == "line1\nline2\n"
+

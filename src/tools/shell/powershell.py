@@ -7,7 +7,10 @@ import base64
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.backends.sandbox import BaseSandbox
+from src.backends.protocol import SandboxProtocol
+from src.ai.permissions.evaluator import PermissionEvaluator
+from src.ai.permissions.shell_policy import ShellPolicy
+from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
 
 
 class PowerShellInput(BaseModel):
@@ -31,14 +34,29 @@ def _encode_powershell(command: str) -> str:
     return base64.b64encode(command.encode("utf-16le")).decode("ascii")
 
 
-def build_powershell_tool(backend: BaseSandbox) -> StructuredTool:
+def build_powershell_tool(
+    backend: SandboxProtocol,
+    permission_context: PermissionContext | None = None,
+) -> StructuredTool:
     """Build the PowerShell tool when the backend supports it."""
+    policy = ShellPolicy()
+    evaluator = PermissionEvaluator()
 
     def _powershell(command: str, timeout: int | None = None, background: bool = False) -> str:
         if "powershell" not in backend.supported_shells:
             return "Error: powershell is not supported by the active backend."
         if background:
             return "Error: background execution is not supported by the powershell tool yet."
+
+        if permission_context is not None:
+            decision = evaluator.evaluate(
+                context=permission_context,
+                subject=PermissionSubject.POWERSHELL,
+                candidate=command,
+                policy_decision=policy.check_powershell(context=permission_context, command=command),
+            )
+            if decision.behavior is not PermissionBehavior.ALLOW:
+                return f"Permission {decision.behavior.value}: {decision.reason}"
 
         encoded = _encode_powershell(command)
         wrapped = f"powershell -NoProfile -EncodedCommand {encoded}"

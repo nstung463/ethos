@@ -1,10 +1,10 @@
-"""OpenTerminal sandbox backend for Ethos.
+"""OpenTerminal remote backend for Ethos.
 
-Provides OpenTerminalSandbox that delegates execute/upload/download to a running
+Provides OpenTerminalBackend that delegates execute/upload/download to a running
 open-terminal HTTP service (github.com/open-webui/open-terminal).
 
 Usage:
-    backend = OpenTerminalSandbox(
+    backend = OpenTerminalBackend(
         base_url="http://localhost:8000",
         api_key="your-api-key",
     )
@@ -22,7 +22,7 @@ try:
     import httpx
 except ImportError as e:
     raise ImportError(
-        "httpx is required for OpenTerminalSandbox. Install with: pip install 'ethos[open-terminal]'"
+        "httpx is required for OpenTerminalBackend. Install with: pip install 'ethos[open-terminal]'"
     ) from e
 
 from src.backends.protocol import (
@@ -30,7 +30,7 @@ from src.backends.protocol import (
     FileDownloadResponse,
     FileUploadResponse,
 )
-from src.backends.sandbox import BaseSandbox
+from src.backends.sandbox import CommandBackedBackend
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def _join_output(entries: list[dict]) -> str:
     return "".join(e.get("data", "") for e in entries if isinstance(e, dict))
 
 
-class OpenTerminalSandbox(BaseSandbox):
+class OpenTerminalBackend(CommandBackedBackend):
     """Backend that delegates to an open-terminal HTTP service.
 
     The service must be running at base_url with OPEN_TERMINAL_API_KEY set.
@@ -54,7 +54,7 @@ class OpenTerminalSandbox(BaseSandbox):
         user_id: str | None = None,
         timeout: int = 120,
     ) -> None:
-        """Initialize OpenTerminalSandbox.
+        """Initialize OpenTerminalBackend.
 
         Args:
             base_url: open-terminal service URL (default: http://localhost:8000)
@@ -78,7 +78,7 @@ class OpenTerminalSandbox(BaseSandbox):
         )
 
         logger.info(
-            "OpenTerminalSandbox initialized (id=%s, url=%s, user_id=%s)",
+            "OpenTerminalBackend initialized (id=%s, url=%s, user_id=%s)",
             self._id,
             self._base_url,
             user_id,
@@ -323,3 +323,7 @@ class OpenTerminalSandbox(BaseSandbox):
             self._client.close()
         except Exception:
             pass
+
+
+# Backward-compatible alias while call sites migrate.
+OpenTerminalSandbox = OpenTerminalBackend

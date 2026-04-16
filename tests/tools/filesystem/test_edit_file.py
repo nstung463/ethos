@@ -1,9 +1,9 @@
-# tests/tools/filesystem/test_edit_file.py
+﻿# tests/tools/filesystem/test_edit_file.py
 """Tests for edit_file tool."""
 from __future__ import annotations
 
 from pathlib import Path
-from src.tools.filesystem.edit_file import build_edit_file_tool
+from src.ai.tools.filesystem.edit_file import build_edit_file_tool
 
 
 def test_edit_replaces_unique_string(workspace: Path) -> None:
@@ -38,3 +38,4 @@ def test_edit_missing_file(workspace: Path) -> None:
     tool = build_edit_file_tool(workspace)
     result = tool.invoke({"path": "ghost.py", "old_string": "a", "new_string": "b"})
     assert "does not exist" in result
+

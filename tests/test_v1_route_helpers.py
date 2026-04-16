@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-from src.api.models.chat import ChatRequest, Message
-from src.api.routes.v1 import _extract_file_ids, _extract_user_api_keys, _resolve_session_id
+from src.app.modules.chat.router import (
+    _extract_backend_selection,
+    _extract_file_ids,
+    _extract_requested_thread_id,
+    _extract_user_api_keys,
+)
+from src.app.modules.chat.schemas import ChatRequest, Message
 
 
 def test_extract_file_ids_supports_openwebui_files_shape() -> None:
@@ -20,29 +25,37 @@ def test_extract_file_ids_supports_openwebui_files_shape() -> None:
     assert _extract_file_ids(request) == ["a", "b", "c", "d"]
 
 
-def test_resolve_session_id_prefers_session_id_then_chat_id_then_metadata() -> None:
+def test_extract_requested_thread_id_prefers_thread_id_then_chat_id_then_session_id_then_metadata() -> None:
     request = ChatRequest(
         model="ethos",
         messages=[Message(role="user", content="hi")],
+        thread_id="thread-1",
         session_id="session-1",
         chat_id="chat-1",
         metadata={"conversation_id": "conv-1"},
     )
-    assert _resolve_session_id(request) == "session-1"
+    assert _extract_requested_thread_id(request) == "thread-1"
 
     request = ChatRequest(
         model="ethos",
         messages=[Message(role="user", content="hi")],
         chat_id="chat-2",
     )
-    assert _resolve_session_id(request) == "chat-2"
+    assert _extract_requested_thread_id(request) == "chat-2"
+
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+        session_id="session-3",
+    )
+    assert _extract_requested_thread_id(request) == "session-3"
 
     request = ChatRequest(
         model="ethos",
         messages=[Message(role="user", content="hi")],
         metadata={"conversation_id": "conv-3"},
     )
-    assert _resolve_session_id(request) == "conv-3"
+    assert _extract_requested_thread_id(request) == "conv-3"
 
 
 def test_extract_user_api_keys_reads_only_expected_string_values() -> None:
@@ -63,3 +76,29 @@ def test_extract_user_api_keys_reads_only_expected_string_values() -> None:
         "openrouter": "sk-or-v1-test",
         "anthropic": "sk-ant-test",
     }
+
+
+def test_extract_backend_selection_defaults_to_sandbox() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+    )
+    assert _extract_backend_selection(request) == ("sandbox", None)
+
+
+def test_extract_backend_selection_reads_local_backend_root() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+        metadata={"backend": {"mode": "local", "root_dir": "  W:/repo/app  "}},
+    )
+    assert _extract_backend_selection(request) == ("local", "W:/repo/app")
+
+
+def test_extract_backend_selection_rejects_unknown_mode() -> None:
+    request = ChatRequest(
+        model="ethos",
+        messages=[Message(role="user", content="hi")],
+        metadata={"backend": {"mode": "unsupported", "root_dir": "W:/repo/app"}},
+    )
+    assert _extract_backend_selection(request) == ("sandbox", None)

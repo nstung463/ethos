@@ -11,6 +11,34 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     : [];
 
   const messages: Message[] = rawMessages.map((msg) => ({
+    ...(msg.permissionRequest && typeof msg.permissionRequest === "object"
+      ? (() => {
+          const permissionRequest = msg.permissionRequest as Record<string, unknown>;
+          const behavior = permissionRequest.behavior;
+          const reason = permissionRequest.reason;
+          const toolName =
+            typeof permissionRequest.tool_name === "string" ? permissionRequest.tool_name : undefined;
+          const suggestedThreadMode =
+            permissionRequest.suggested_thread_mode === "default" ||
+            permissionRequest.suggested_thread_mode === "accept_edits" ||
+            permissionRequest.suggested_thread_mode === "bypass_permissions" ||
+            permissionRequest.suggested_thread_mode === "dont_ask"
+              ? permissionRequest.suggested_thread_mode
+              : undefined;
+          return behavior === "ask" || behavior === "deny"
+            ? typeof reason === "string"
+              ? {
+                  permissionRequest: {
+                    behavior,
+                    reason,
+                    tool_name: toolName,
+                    suggested_thread_mode: suggestedThreadMode,
+                  },
+                }
+              : {}
+            : {};
+        })()
+      : {}),
     id: typeof msg.id === "string" ? msg.id : createId("msg"),
     role:
       msg.role === "assistant" || msg.role === "system" || msg.role === "user"
@@ -49,9 +77,15 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
 
   return {
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
+    remoteId: typeof thread.remoteId === "string" ? thread.remoteId : undefined,
     title: typeof thread.title === "string" ? thread.title : "New conversation",
     model: typeof thread.model === "string" ? thread.model : "",
     profileId: typeof thread.profileId === "string" ? thread.profileId : undefined,
+    backendMode:
+      thread.backendMode === "local" || thread.backendMode === "sandbox"
+        ? thread.backendMode
+        : "sandbox",
+    localRootDir: typeof thread.localRootDir === "string" ? thread.localRootDir : "",
     mode:
       thread.mode === "build" || thread.mode === "review" || thread.mode === "explain"
         ? (thread.mode as ComposerMode)

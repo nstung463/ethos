@@ -1,6 +1,6 @@
-"""BaseSandbox — abstract base that derives all high-level file operations from execute().
+"""Command-backed backend base that derives file operations from shell primitives.
 
-Mirrors deepagents BaseSandbox. Concrete subclasses only need to implement:
+Concrete subclasses only need to implement:
   - execute(command, timeout)
   - upload_files([(path, bytes)])
   - download_files([path])
@@ -27,6 +27,7 @@ from src.backends.protocol import (
     FileUploadResponse,
     LsEntry,
     LsResult,
+    PathInfo,
     ReadResult,
     SandboxProtocol,
     WriteResult,
@@ -112,11 +113,54 @@ for m in sorted(glob.glob(pattern, recursive=True)):
 
 _GREP_CMD = "grep -rHnF {glob_flag} -e {pattern} {path} 2>/dev/null || true"
 
+_STAT_CMD = """python3 -c "
+import os, json, base64
+path = base64.b64decode('{path_b64}').decode()
+exists = os.path.exists(path)
+print(json.dumps({{
+    'path': path,
+    'exists': exists,
+    'is_file': os.path.isfile(path),
+    'is_dir': os.path.isdir(path),
+    'size': (os.path.getsize(path) if exists and os.path.isfile(path) else None),
+}}))
+" 2>&1"""
+
+_WALK_CMD = """python3 -c "
+import os, json, base64
+path = base64.b64decode('{path_b64}').decode()
+if os.path.isfile(path):
+    print(json.dumps({{'path': path, 'is_dir': False}}))
+elif os.path.isdir(path):
+    for root, dirs, files in os.walk(path):
+        for d in sorted(dirs):
+            print(json.dumps({{'path': os.path.join(root, d), 'is_dir': True}}))
+        for f in sorted(files):
+            print(json.dumps({{'path': os.path.join(root, f), 'is_dir': False}}))
+" 2>&1"""
+
+_READ_BYTES_CMD = """python3 -c "
+import os, sys, json, base64
+path = base64.b64decode('{path_b64}').decode()
+if not os.path.isfile(path):
+    print(json.dumps({{'error': 'file_not_found'}})); sys.exit(0)
+raw = open(path, 'rb').read()
+print(json.dumps({{'data': base64.b64encode(raw).decode()}}))
+" 2>&1"""
+
+_WRITE_BYTES_CMD = """python3 -c "
+import os, base64
+path = base64.b64decode('{path_b64}').decode()
+data = base64.b64decode('{data_b64}')
+os.makedirs(os.path.dirname(path) or '.', exist_ok=True)
+open(path, 'wb').write(data)
+" 2>&1"""
+
 
 # ── Base class ─────────────────────────────────────────────────────────────────
 
-class BaseSandbox(ABC):
-    """Abstract base — all high-level ops derived from execute() + upload/download."""
+class CommandBackedBackend(ABC):
+    """Backend base for environments that derive filesystem ops from shell primitives."""
 
     # ── Abstract primitives ────────────────────────────────────────────────────
 
@@ -136,6 +180,55 @@ class BaseSandbox(ABC):
 
     @abstractmethod
     def download_files(self, paths: list[str]) -> list[FileDownloadResponse]: ...
+
+    def read_bytes(self, path: str) -> FileDownloadResponse:
+        path_b64 = base64.b64encode(path.encode()).decode()
+        result = self.execute(_READ_BYTES_CMD.format(path_b64=path_b64))
+        try:
+            data = json.loads(result.output.strip())
+        except json.JSONDecodeError:
+            return FileDownloadResponse(path=path, error=f"unexpected_response: {result.output[:200]}")
+        if "error" in data:
+            return FileDownloadResponse(path=path, error=str(data["error"]))
+        return FileDownloadResponse(path=path, content=base64.b64decode(data["data"]))
+
+    def write_bytes(self, path: str, content: bytes) -> FileUploadResponse:
+        path_b64 = base64.b64encode(path.encode()).decode()
+        data_b64 = base64.b64encode(content).decode()
+        result = self.execute(_WRITE_BYTES_CMD.format(path_b64=path_b64, data_b64=data_b64))
+        if result.exit_code != 0:
+            return FileUploadResponse(path=path, error=result.output.strip() or "write_failed")
+        return FileUploadResponse(path=path)
+
+    def stat_path(self, path: str) -> PathInfo:
+        path_b64 = base64.b64encode(path.encode()).decode()
+        result = self.execute(_STAT_CMD.format(path_b64=path_b64))
+        try:
+            data = json.loads(result.output.strip())
+        except json.JSONDecodeError:
+            return PathInfo(path=path, exists=False, is_file=False, is_dir=False)
+        return PathInfo(
+            path=str(data.get("path", path)),
+            exists=bool(data.get("exists")),
+            is_file=bool(data.get("is_file")),
+            is_dir=bool(data.get("is_dir")),
+            size=data.get("size"),
+        )
+
+    def list_dir(self, path: str) -> LsResult:
+        return self.ls(path)
+
+    def walk(self, path: str) -> list[LsEntry]:
+        path_b64 = base64.b64encode(path.encode()).decode()
+        result = self.execute(_WALK_CMD.format(path_b64=path_b64))
+        entries: list[LsEntry] = []
+        for line in result.output.strip().splitlines():
+            try:
+                data = json.loads(line)
+                entries.append(LsEntry(path=data["path"], is_dir=data["is_dir"]))
+            except (json.JSONDecodeError, KeyError):
+                continue
+        return entries
 
     # ── Derived file operations ────────────────────────────────────────────────
 
@@ -267,3 +360,7 @@ def _map_edit_error(error: str, file_path: str, old_string: str, count: int | No
     if error == "not_a_text_file":
         return EditResult(error=f"'{file_path}' is not a text file.")
     return EditResult(error=f"Error editing '{file_path}': {error}")
+
+
+# Backward-compatible alias while call sites migrate to the clearer name.
+BaseSandbox = CommandBackedBackend

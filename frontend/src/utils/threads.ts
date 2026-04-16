@@ -7,8 +7,11 @@ export function createId(prefix: string) {
 export function createEmptyThread(model = "", mode: ComposerMode = "build"): ChatThread {
   return {
     id: createId("chat"),
+    remoteId: undefined,
     title: "New conversation",
     model,
+    backendMode: "sandbox",
+    localRootDir: "",
     mode,
     messages: [],
     attachments: [],
@@ -72,7 +75,9 @@ export function mergeReasoning(message: Message, chunk: string): Message {
       continue;
     }
     if (trimmed.startsWith("Using tool `")) {
-      toolEvents.push(trimmed);
+      if (toolEvents.at(-1) !== trimmed) {
+        toolEvents.push(trimmed);
+      }
     } else {
       thinkingLines.push(line);
     }
@@ -86,6 +91,26 @@ export function mergeReasoning(message: Message, chunk: string): Message {
   return { ...message, reasoning: nextReasoning, toolEvents };
 }
 
+export function parsePermissionPromptFromContent(content: string) {
+  const trimmed = content.trim();
+  const exact = trimmed.match(/^Permission (ask|deny):\s*(.+)$/is);
+  if (exact) {
+    return {
+      behavior: exact[1] === "ask" ? ("ask" as const) : ("deny" as const),
+      reason: exact[2].trim(),
+    };
+  }
+
+  if (/need your approval|would you like to proceed|approve/i.test(trimmed)) {
+    return {
+      behavior: "ask" as const,
+      reason: trimmed,
+    };
+  }
+
+  return null;
+}
+
 export function getToolLabel(input: string) {
   const match = input.match(/Using tool `([^`]+)`/);
   return match?.[1] ?? input;
@@ -93,8 +118,16 @@ export function getToolLabel(input: string) {
 
 export function getToolParams(input: string) {
   const normalized = input.trim();
-  const match = normalized.match(/^Using tool `([^`]+)`\(([\s\S]*)\)$/);
-  return match?.[2]?.trim() ?? "";
+
+  // Try new format: Using tool `name` with params: params_content
+  const newMatch = normalized.match(/^Using tool `[^`]+` with params: (.+)$/);
+  if (newMatch) {
+    return newMatch[1].trim();
+  }
+
+  // Fallback to old format: Using tool `name`(params)
+  const oldMatch = normalized.match(/^Using tool `([^`]+)`\(([\s\S]*)\)$/);
+  return oldMatch?.[2]?.trim() ?? "";
 }
 
 export function formatToolParams(input: string, maxLength = 360) {

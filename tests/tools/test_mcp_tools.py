@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import sys
@@ -7,7 +7,7 @@ import types
 import pytest
 
 from src.config import get_mcp_servers
-from src.tools.mcp import build_mcp_tools
+from src.ai.tools.mcp import build_mcp_tools
 
 
 class _FakeTool:
@@ -149,3 +149,4 @@ def test_list_and_read_mcp_resources(monkeypatch: pytest.MonkeyPatch) -> None:
     assert listed["resources"][0]["server"] == "docs"
     assert listed["resources"][0]["uri"] == "mcp://docs/one"
     assert read["contents"][0]["text"] == "hello"
+
