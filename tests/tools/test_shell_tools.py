@@ -124,6 +124,11 @@ def test_bash_calls_interrupt_on_network_command(tmp_path) -> None:
     assert len(interrupted) == 1
     assert interrupted[0]["behavior"] == "ask"
     assert interrupted[0]["subject"] == "bash"
+    assert interrupted[0]["approval_options"] == [
+        {"id": "once", "label": "Approve once"},
+        {"id": "thread_command", "label": "Allow this command in this thread"},
+        {"id": "user_command", "label": "Always allow this command"},
+    ]
     assert not backend.calls  # command was NOT executed
 
 

@@ -85,6 +85,15 @@ def merge_permission_profiles(*profiles: dict[str, Any]) -> dict[str, Any]:
     return {"mode": mode, "working_directories": working_directories, "rules": rules}
 
 
+def _append_rule(profile: dict[str, Any], rule: dict[str, Any]) -> dict[str, Any]:
+    normalized = normalize_permission_profile(profile)
+    rules = list(normalized["rules"])
+    if rule not in rules:
+        rules.append(rule)
+    normalized["rules"] = rules
+    return normalized
+
+
 class PermissionContextService:
     def __init__(self, auth_repo: AuthRepository, thread_store: ThreadStore) -> None:
         self._auth_repo = auth_repo
@@ -110,6 +119,37 @@ class PermissionContextService:
         if saved is None:
             return None
         return normalize_permission_profile(saved)
+
+    def grant_rule_for_scope(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        scope: str,
+        subject: str,
+        matcher: str,
+    ) -> dict[str, Any] | None:
+        rule = {
+            "subject": PermissionSubject(subject).value,
+            "behavior": PermissionBehavior.ALLOW.value,
+            "matcher": matcher,
+        }
+        if scope == "thread":
+            current = self.get_thread_overlay(thread_id=thread_id, user_id=user_id)
+            if current is None:
+                return None
+            return self.update_thread_overlay(
+                thread_id=thread_id,
+                user_id=user_id,
+                profile=_append_rule(current, rule),
+            )
+        if scope == "user":
+            current = self.get_user_defaults(user_id=user_id)
+            return self.update_user_defaults(
+                user_id=user_id,
+                profile=_append_rule(current, rule),
+            )
+        return None
 
     def get_thread_permissions_bundle(self, *, thread_id: str, user_id: str) -> dict[str, Any] | None:
         overlay = self.get_thread_overlay(thread_id=thread_id, user_id=user_id)

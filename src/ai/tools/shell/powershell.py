@@ -43,6 +43,12 @@ def build_powershell_tool(
     policy = ShellPolicy()
     evaluator = PermissionEvaluator()
 
+    approval_options = [
+        {"id": "once", "label": "Approve once"},
+        {"id": "thread_command", "label": "Allow this command in this thread"},
+        {"id": "user_command", "label": "Always allow this command"},
+    ]
+
     def _powershell(command: str, timeout: int | None = None, background: bool = False) -> str:
         if "powershell" not in backend.supported_shells:
             return "Error: powershell is not supported by the active backend."
@@ -66,6 +72,7 @@ def build_powershell_tool(
                     "reason": decision.reason,
                     "subject": PermissionSubject.POWERSHELL.value,
                     "command": command,
+                    "approval_options": approval_options,
                     "suggested_mode": PermissionMode.BYPASS_PERMISSIONS.value,
                     "suggestions": [s.value for s in (decision.suggestions or [])],
                 })

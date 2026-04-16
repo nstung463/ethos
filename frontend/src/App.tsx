@@ -423,11 +423,8 @@ function ChatWorkspace() {
           ? {
               ...message,
               content: "",
-              reasoning: "",
-              toolEvents: [],
               error: undefined,
               permissionRequest: undefined,
-              thinkingDuration: undefined,
               status: "streaming",
             }
           : message,
@@ -438,7 +435,7 @@ function ChatWorkspace() {
 
   async function retryPendingPermissionRequest(
     assistantMessageId: string,
-    options: { persistMode?: PermissionMode; oneShotMode?: PermissionMode },
+    options: { persistMode?: PermissionMode },
   ) {
     const pending = pendingPermissionRetriesRef.current[assistantMessageId];
     if (!pending) {
@@ -482,9 +479,10 @@ function ChatWorkspace() {
         fileIds: pending.fileIds,
         profile: pending.profile,
         signal: controller.signal,
-        extraMetadata: options.oneShotMode
-          ? { ...backendMetadata, permission_override: { mode: options.oneShotMode } }
-          : backendMetadata,
+        extraMetadata: {
+          ...backendMetadata,
+          resume: { approved: true },
+        },
         onContent: (chunk) => {
           sawContent = true;
           updateThread(pending.localThreadId, (thread) => ({
@@ -907,13 +905,7 @@ function ChatWorkspace() {
     if (!pending) {
       throw new Error("No blocked action is available to approve.");
     }
-    const existingRequest =
-      threads
-        .find((thread) => thread.id === pending.localThreadId)
-        ?.messages.find((message) => message.id === messageId)?.permissionRequest;
-    await retryPendingPermissionRequest(messageId, {
-      oneShotMode: existingRequest?.suggested_thread_mode ?? "bypass_permissions",
-    });
+    await retryPendingPermissionRequest(messageId, {});
   }
 
   async function handleApproveForChat(messageId: string, mode: PermissionMode) {

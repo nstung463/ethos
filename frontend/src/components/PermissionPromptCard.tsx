@@ -88,7 +88,7 @@ export default function PermissionPromptCard({
           onClick={() =>
             runAction(
               "approve_chat",
-              () => onApproveForChat(prompt.suggested_thread_mode ?? "bypass_permissions"),
+              () => onApproveForChat(prompt.suggested_mode ?? "bypass_permissions"),
             )
           }
           disabled={busyAction !== ""}
