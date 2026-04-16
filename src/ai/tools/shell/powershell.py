@@ -56,16 +56,18 @@ def build_powershell_tool(
                 candidate=command,
                 policy_decision=policy.check_powershell(context=permission_context, command=command),
             )
-            if decision.behavior is PermissionBehavior.DENY:
+            if decision.behavior is PermissionBehavior.ALLOW:
+                pass  # fall through to execution
+            elif decision.behavior is PermissionBehavior.DENY:
                 return f"Permission denied: {decision.reason}"
-
-            if decision.behavior is PermissionBehavior.ASK:
+            elif decision.behavior is PermissionBehavior.ASK:
                 user_decision = interrupt({
                     "behavior": "ask",
                     "reason": decision.reason,
-                    "subject": "powershell",
+                    "subject": PermissionSubject.POWERSHELL.value,
                     "command": command,
                     "suggested_mode": PermissionMode.BYPASS_PERMISSIONS.value,
+                    "suggestions": [s.value for s in (decision.suggestions or [])],
                 })
                 if not user_decision.get("approved", False):
                     return "Permission denied by user."

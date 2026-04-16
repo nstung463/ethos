@@ -138,6 +138,58 @@ def test_bash_proceeds_after_interrupt_approval(tmp_path) -> None:
     tool = build_bash_tool(backend, permission_context=ctx)
 
     with patch("src.ai.tools.shell.bash.interrupt", return_value={"approved": True}):
-        tool.invoke({"command": "curl https://example.com"})
+        result = tool.invoke({"command": "curl https://example.com"})
 
     assert backend.calls  # command WAS executed after approval
+    assert "denied" not in result.lower()  # not a denial message
+
+
+def test_bash_calls_interrupt_on_code_execution(tmp_path) -> None:
+    """code_execution commands (python, node) must call interrupt() even in accept_edits mode."""
+    from unittest.mock import patch
+
+    from src.ai.permissions.context import build_default_permission_context
+    from src.ai.permissions.types import PermissionMode
+    from src.ai.tools.shell.bash import build_bash_tool
+
+    backend = _FakeBackend({"bash"})
+    ctx = build_default_permission_context(workspace_root=tmp_path, mode=PermissionMode.ACCEPT_EDITS)
+    tool = build_bash_tool(backend, permission_context=ctx)
+
+    interrupted: list[dict] = []
+
+    def _fake_interrupt(payload):
+        interrupted.append(payload)
+        return {"approved": False}
+
+    with patch("src.ai.tools.shell.bash.interrupt", side_effect=_fake_interrupt):
+        tool.invoke({"command": "python script.py"})
+
+    assert len(interrupted) == 1
+    assert interrupted[0]["behavior"] == "ask"
+    assert not backend.calls
+
+
+def test_powershell_calls_interrupt_on_network_command(tmp_path) -> None:
+    from unittest.mock import patch
+
+    from src.ai.permissions.context import build_default_permission_context
+    from src.ai.tools.shell.powershell import build_powershell_tool
+
+    backend = _FakeBackend({"powershell"})
+    ctx = build_default_permission_context(workspace_root=tmp_path)
+    tool = build_powershell_tool(backend, permission_context=ctx)
+
+    interrupted: list[dict] = []
+
+    def _fake_interrupt(payload):
+        interrupted.append(payload)
+        return {"approved": False}
+
+    with patch("src.ai.tools.shell.powershell.interrupt", side_effect=_fake_interrupt):
+        result = tool.invoke({"command": "Invoke-WebRequest https://example.com"})
+
+    assert len(interrupted) == 1
+    assert interrupted[0]["behavior"] == "ask"
+    assert interrupted[0]["subject"] == "powershell"
+    assert not backend.calls
