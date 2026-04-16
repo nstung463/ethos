@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.errors import GraphInterrupt
 
 from src.ai.agents.ethos import create_ethos_agent
 from src.ai.permissions import PermissionContext, PermissionMode, set_mode
@@ -698,9 +699,38 @@ async def chat_completions(
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
-    result = await agent.ainvoke(agent_input, config=config)
-    last = result["messages"][-1]
-    content = _extract_text(last.content)
+    try:
+        result = await agent.ainvoke(agent_input, config=config)
+        last = result["messages"][-1]
+        content = _extract_text(last.content)
+    except GraphInterrupt:
+        logger.info("GraphInterrupt raised in non-streaming path (model=%s, session_id=%s)", resolved_model, thread_id)
+        try:
+            snapshot = await agent.aget_state(config)
+            interrupts = [
+                intr.value
+                for task in getattr(snapshot, "tasks", [])
+                for intr in getattr(task, "interrupts", [])
+            ]
+        except Exception:
+            logger.debug("aget_state not available or failed — skipping interrupt check")
+            interrupts = []
+        return JSONResponse({
+            "id": f"chatcmpl-{uuid.uuid4().hex[:8]}",
+            "object": "chat.completion",
+            "created": int(time.time()),
+            "model": resolved_model,
+            "choices": [{
+                "index": 0,
+                "message": {"role": "assistant", "content": ""},
+                "finish_reason": "stop",
+                "delta": {},
+                "permission_request": interrupts[0] if interrupts else None,
+            }],
+            "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0},
+            "thread_id": thread_id,
+            "session_id": thread_id,
+        })
 
     output_file = None
     if (
