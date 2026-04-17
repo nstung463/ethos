@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 export default function FollowUps({
   followUps,
   onClick,
@@ -5,11 +7,12 @@ export default function FollowUps({
   followUps: string[];
   onClick: (prompt: string) => void;
 }) {
+  const { t } = useTranslation();
   if (followUps.length === 0) return null;
 
   return (
     <div className="mt-4">
-      <div className="text-sm font-medium text-[var(--text-primary)]">Follow up</div>
+      <div className="text-sm font-medium text-[var(--text-primary)]">{t("chat.followUp", "Follow up")}</div>
       <div className="mt-1.5 flex flex-col text-left">
         {followUps.map((followUp, index) => (
           <div key={`${followUp}-${index}`}>

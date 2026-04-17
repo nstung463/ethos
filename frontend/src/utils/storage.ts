@@ -11,6 +11,45 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     : [];
 
   const messages: Message[] = rawMessages.map((msg) => ({
+    ...(msg.permissionRequest && typeof msg.permissionRequest === "object"
+      ? (() => {
+          const permissionRequest = msg.permissionRequest as Record<string, unknown>;
+          const behavior = permissionRequest.behavior;
+          const reason = permissionRequest.reason;
+          const toolName =
+            typeof permissionRequest.tool_name === "string" ? permissionRequest.tool_name : undefined;
+          const rawSuggestedMode =
+            permissionRequest.suggested_mode ?? permissionRequest.suggested_thread_mode;
+          const suggestedMode =
+            rawSuggestedMode === "default" ||
+            rawSuggestedMode === "accept_edits" ||
+            rawSuggestedMode === "bypass_permissions" ||
+            rawSuggestedMode === "dont_ask"
+              ? rawSuggestedMode
+              : undefined;
+          return behavior === "ask" || behavior === "deny"
+            ? typeof reason === "string"
+              ? {
+                  permissionRequest: {
+                    behavior,
+                    reason,
+                    tool_name: toolName,
+                    suggested_mode: suggestedMode,
+                    subject:
+                      permissionRequest.subject === "read" ||
+                      permissionRequest.subject === "edit" ||
+                      permissionRequest.subject === "bash" ||
+                      permissionRequest.subject === "powershell"
+                        ? permissionRequest.subject
+                        : undefined,
+                    path: typeof permissionRequest.path === "string" ? permissionRequest.path : undefined,
+                    command: typeof permissionRequest.command === "string" ? permissionRequest.command : undefined,
+                  },
+                }
+              : {}
+            : {};
+        })()
+      : {}),
     id: typeof msg.id === "string" ? msg.id : createId("msg"),
     role:
       msg.role === "assistant" || msg.role === "system" || msg.role === "user"
@@ -51,8 +90,15 @@ function normalizeThread(thread: ChatThread | Record<string, unknown>): ChatThre
     id: typeof thread.id === "string" ? thread.id : createId("chat"),
     remoteId: typeof thread.remoteId === "string" ? thread.remoteId : undefined,
     title: typeof thread.title === "string" ? thread.title : "New conversation",
+    isFavorite: typeof thread.isFavorite === "boolean" ? thread.isFavorite : false,
+    project: typeof thread.project === "string" ? thread.project : "",
     model: typeof thread.model === "string" ? thread.model : "",
     profileId: typeof thread.profileId === "string" ? thread.profileId : undefined,
+    backendMode:
+      thread.backendMode === "local" || thread.backendMode === "sandbox"
+        ? thread.backendMode
+        : "sandbox",
+    localRootDir: typeof thread.localRootDir === "string" ? thread.localRootDir : "",
     mode:
       thread.mode === "build" || thread.mode === "review" || thread.mode === "explain"
         ? (thread.mode as ComposerMode)

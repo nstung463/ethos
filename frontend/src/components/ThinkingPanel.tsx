@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { getToolLabel, getToolParams } from "../utils/threads";
 
 function SpinnerIcon() {
@@ -73,6 +74,7 @@ function SlidePanel({ open, children }: { open: boolean; children: ReactNode }) 
 }
 
 function ToolRow({ event }: { event: string; isLast?: boolean }) {
+  const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const label = getToolLabel(event);
   const fullParams = getToolParams(event);
@@ -90,9 +92,9 @@ function ToolRow({ event }: { event: string; isLast?: boolean }) {
       </button>
       <SlidePanel open={expanded}>
         <div className="px-3 pb-2 pt-1">
-          <div className="overflow-x-auto rounded border border-[var(--border-subtle)] bg-[var(--app-bg)] px-2.5 py-2 font-mono text-[10px] text-[var(--text-faint)]">
-            <pre className="whitespace-pre-wrap break-words leading-relaxed text-[var(--text-faint)]">
-              {fullParams || "No parameters"}
+          <div className="overflow-x-auto rounded border border-[var(--border-subtle)] bg-[var(--app-bg)] px-2.5 py-2 font-mono text-[10px] text-[var(--text-muted)]">
+            <pre className="whitespace-pre-wrap break-words leading-relaxed text-[var(--text-muted)]">
+              {fullParams || t("chat.noParameters", "No parameters")}
             </pre>
           </div>
         </div>
@@ -112,6 +114,7 @@ export default function ThinkingPanel({
   isStreaming: boolean;
   thinkingDuration?: number;
 }) {
+  const { t } = useTranslation();
   const tools = toolEvents ?? [];
   const hasReasoning = !!reasoning?.trim();
   const hasContent = hasReasoning || tools.length > 0;
@@ -128,13 +131,13 @@ export default function ThinkingPanel({
   if (!hasContent) return null;
 
   function getHeaderLabel() {
-    if (isStreaming) return "Thinking...";
+    if (isStreaming) return t("chat.thinking", "Thinking...");
     if (thinkingDuration !== undefined) {
-      if (thinkingDuration < 1) return "Thought for less than a second";
-      if (thinkingDuration === 1) return "Thought for 1 second";
-      return `Thought for ${thinkingDuration} seconds`;
+      if (thinkingDuration < 1) return t("chat.thoughtLessThanSecond", "Thought for less than a second");
+      if (thinkingDuration === 1) return t("chat.thoughtOneSecond", "Thought for 1 second");
+      return t("chat.thoughtSeconds", "Thought for {{count}} seconds", { count: thinkingDuration });
     }
-    return "Thought";
+    return t("chat.thought", "Thought");
   }
 
   return (
@@ -147,8 +150,8 @@ export default function ThinkingPanel({
         {isStreaming ? <SpinnerIcon /> : <CheckIcon />}
         <span className={isStreaming ? "thinking-shimmer" : "text-[var(--text-soft)]"}>{getHeaderLabel()}</span>
         {tools.length > 0 && !isStreaming ? (
-          <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface-badge)] px-1.5 py-px text-[9px] text-[var(--text-fainter)]">
-            {tools.length} tool{tools.length !== 1 ? "s" : ""}
+          <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface-badge)] px-1.5 py-px text-[9px]">
+            {t("chat.toolsCount", "{{count}} tool", { count: tools.length })}
           </span>
         ) : null}
         <ChevronIcon open={open} />
@@ -159,7 +162,7 @@ export default function ThinkingPanel({
           {tools.length > 0 ? (
             <div className={hasReasoning ? "border-b border-[var(--border-subtle)]" : ""}>
               <div className="px-3 py-2 bg-[var(--surface-soft)]">
-                <div className="text-[11px] font-medium text-[var(--text-muted)]">Tools used</div>
+                <div className="text-[11px] font-medium text-[var(--text-muted)]">{t("chat.toolsUsed", "Tools used")}</div>
               </div>
               <div className="divide-y divide-[var(--border-subtle)]">
                 {tools.map((event, i) => (
@@ -172,9 +175,9 @@ export default function ThinkingPanel({
           {hasReasoning ? (
             <div className="px-3 py-2.5">
               {tools.length > 0 ? (
-                <div className="text-[11px] font-medium text-[var(--text-muted)] mb-2">Reasoning</div>
+                <div className="text-[11px] font-medium text-[var(--text-muted)] mb-2">{t("chat.reasoning", "Reasoning")}</div>
               ) : null}
-              <pre className="text-[11px] leading-relaxed whitespace-pre-wrap break-words font-mono text-[var(--text-faint)]">
+              <pre className="text-[11px] leading-relaxed whitespace-pre-wrap break-words font-mono text-[var(--text-muted)]">
                 {reasoning}
               </pre>
             </div>

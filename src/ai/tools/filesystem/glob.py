@@ -1,14 +1,14 @@
-"""glob tool — find files matching a glob pattern."""
+from __future__ import annotations
 
 from pathlib import Path
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.ai.permissions.evaluator import PermissionEvaluator
-from src.ai.permissions.filesystem_policy import FilesystemPolicy
-from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
-from src.ai.tools.filesystem._sandbox import resolve
+from src.ai.filesystem import FilesystemService
+from src.ai.permissions.types import PermissionContext, PermissionSubject
+from src.ai.tools.filesystem._shared import permission_error
+from src.backends.protocol import FilesystemBackendProtocol
 
 
 class GlobInput(BaseModel):
@@ -24,51 +24,28 @@ class GlobInput(BaseModel):
     )
 
 
-def build_glob_tool(root: Path, permission_context: PermissionContext | None = None) -> StructuredTool:
-    policy = FilesystemPolicy()
-    evaluator = PermissionEvaluator()
+def build_glob_tool(
+    root: Path,
+    backend: FilesystemBackendProtocol | None = None,
+    permission_context: PermissionContext | None = None,
+) -> StructuredTool:
+    filesystem = FilesystemService(root, backend=backend)
 
     def _tool(pattern: str, path: str = ".") -> str:
-        search_root = resolve(root, path)
-        if not search_root.exists():
-            return f"Error: '{path}' does not exist."
+        blocked = permission_error(filesystem, permission_context, PermissionSubject.READ, path)
+        if blocked:
+            return blocked
 
-        # Check permission on search root
-        if permission_context is not None:
-            decision = evaluator.evaluate(
-                context=permission_context,
-                subject=PermissionSubject.READ,
-                candidate=path,
-                policy_decision=policy.check_read(context=permission_context, target=search_root),
-            )
-            if decision.behavior is not PermissionBehavior.ALLOW:
-                return f"Permission {decision.behavior.value}: {decision.reason}"
+        result = filesystem.glob_search(pattern, path)
+        if result.error:
+            return result.error
 
-        matches = sorted(search_root.glob(pattern))
-
-        # Filter denied individual paths
-        if permission_context is not None:
-            filtered = []
-            for m in matches:
-                rel = str(m.relative_to(root))
-                d = evaluator.evaluate(
-                    context=permission_context,
-                    subject=PermissionSubject.READ,
-                    candidate=rel,
-                    policy_decision=policy.check_read(context=permission_context, target=m),
-                )
-                if d.behavior is PermissionBehavior.ALLOW:
-                    filtered.append(m)
-            matches = filtered
-
-        if not matches:
-            return f"No files matched '{pattern}' in '{path}'."
-
-        lines = [str(m.relative_to(root)) for m in matches]
-        result = "\n".join(lines)
-        if len(lines) > 500:
-            result = "\n".join(lines[:500]) + f"\n\n[Truncated: showing 500 of {len(lines)} matches]"
-        return result
+        matches = [
+            match
+            for match in result.matches
+            if permission_error(filesystem, permission_context, PermissionSubject.READ, match) is None
+        ]
+        return filesystem.format_glob_matches(pattern, path, matches)
 
     return StructuredTool.from_function(
         name="glob",
@@ -80,3 +57,6 @@ def build_glob_tool(root: Path, permission_context: PermissionContext | None = N
         ),
         args_schema=GlobInput,
     )
+
+
+__all__ = ["GlobInput", "build_glob_tool"]

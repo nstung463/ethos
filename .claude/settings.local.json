@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(python -c \"from src.config import build_chat_model, ModelSpec; from src.api.routes.v1 import _extract_profile; from src.api.services.chat_tasks import generate_title_task; print\\('OK'\\)\")",
+      "Bash(python -m pytest tests/test_v1_route_helpers.py -v)",
+      "Bash(python -m pytest tests/ -v --ignore=tests/test_daytona_backend.py)",
+      "Bash(python -m pytest tests/ --ignore=tests/test_daytona_backend.py -q)"
+    ]
+  }
+}

@@ -68,7 +68,21 @@ class PermissionEvaluator:
             )
             return self._apply_dont_ask(context, decision)
 
-        # Step 5: bypass_permissions — override ASK/PASSTHROUGH to ALLOW
+        # Step 5: explicit allow rule
+        allow_rule = find_matching_rule(
+            rules=context.rules,
+            subject=subject,
+            candidate=candidate,
+            behavior=PermissionBehavior.ALLOW,
+        )
+        if allow_rule is not None:
+            return PermissionDecision(
+                behavior=PermissionBehavior.ALLOW,
+                reason=f"Allowed by {allow_rule.source.value} rule",
+                matched_rule=allow_rule,
+            )
+
+        # Step 6: bypass_permissions — override ASK/PASSTHROUGH to ALLOW
         if context.mode is PermissionMode.BYPASS_PERMISSIONS:
             if policy_decision.behavior is not PermissionBehavior.DENY:
                 return PermissionDecision(
@@ -76,7 +90,7 @@ class PermissionEvaluator:
                     reason="bypass_permissions mode",
                 )
 
-        # Step 6+7: use policy decision, convert PASSTHROUGH to ASK
+        # Step 7+8: use policy decision, convert PASSTHROUGH to ASK
         decision = policy_decision
         if decision.behavior is PermissionBehavior.PASSTHROUGH:
             decision = PermissionDecision(
@@ -84,7 +98,7 @@ class PermissionEvaluator:
                 reason="No matching permission rule or mode-based allow",
             )
 
-        # Step 8: dont_ask conversion
+        # Step 9: dont_ask conversion
         return self._apply_dont_ask(context, decision)
 
     def _find_tool_wide(

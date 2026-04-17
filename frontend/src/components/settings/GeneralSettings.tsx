@@ -1,31 +1,32 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function GeneralSettings() {
-  const [language, setLanguage] = useState("en");
+  const { t, i18n } = useTranslation();
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">General</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">{t("settings.title", "General")}</h1>
 
         {/* Language Section */}
         <div className="space-y-4 mb-8">
           <label className="block">
             <span className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] mb-2 block">
-              Language
+              {t("settings.language", "Language")}
             </span>
+            <div className="mb-2 text-[12px] text-[var(--text-secondary)]">
+              {t("settings.languageDesc", "Select your preferred language for the interface.")}
+            </div>
             <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              value={i18n.language || "en"}
+              onChange={(e) => i18n.changeLanguage(e.target.value)}
               className="w-full rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] px-3 py-2 text-[var(--text-primary)] outline-none transition hover:border-[var(--border-strong)] focus:border-[var(--accent)]"
+              style={{ colorScheme: "inherit" }}
             >
-              <option value="en">English</option>
-              <option value="vi">Tiếng Việt</option>
-              <option value="es">Español</option>
-              <option value="fr">Français</option>
-              <option value="de">Deutsch</option>
-              <option value="zh">中文</option>
+              <option value="en" className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">{t("common.english", "English")}</option>
+              <option value="vi" className="bg-[var(--panel-elevated)] text-[var(--text-primary)]">{t("common.vietnamese", "Tiếng Việt")}</option>
             </select>
           </label>
         </div>
@@ -33,10 +34,10 @@ export default function GeneralSettings() {
         {/* Notifications Section */}
         <div className="space-y-4">
           <label className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
-            Notifications
+            {t("settings.notificationsTitle", "Notifications")}
           </label>
           <div className="flex items-center justify-between p-3 rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)]">
-            <span className="text-sm text-[var(--text-secondary)]">Enable notifications</span>
+            <span className="text-sm text-[var(--text-secondary)]">{t("settings.enableNotifications", "Enable notifications")}</span>
             <button
               type="button"
               onClick={() => setNotificationsEnabled(!notificationsEnabled)}

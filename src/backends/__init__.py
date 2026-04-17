@@ -1,12 +1,12 @@
-"""Ethos sandbox backends.
+"""Ethos execution backends.
 
 Backends abstract where code executes and where files live.
 
-- LocalSandbox  — subprocess + pathlib on the local machine (default)
-- DaytonaSandbox — remote isolated container via Daytona SDK
+- LocalBackend   — subprocess + pathlib on the local machine (default)
+- DaytonaBackend — remote isolated container via Daytona SDK
 """
 
-from src.backends.local import LocalSandbox
+from src.backends.local import LocalBackend, LocalSandbox
 from src.backends.protocol import (
     EditResult,
     ExecuteResponse,
@@ -16,6 +16,7 @@ from src.backends.protocol import (
 )
 
 __all__ = [
+    "LocalBackend",
     "LocalSandbox",
     "SandboxProtocol",
     "ExecuteResponse",

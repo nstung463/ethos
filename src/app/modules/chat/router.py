@@ -9,13 +9,13 @@ from pathlib import Path
 from typing import Any, AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.errors import GraphInterrupt
 
 from src.ai.agents.ethos import create_ethos_agent
-from src.ai.permissions import PermissionContext, PermissionMode, set_mode
+from src.ai.permissions import PermissionContext, PermissionMode, PermissionSubject, set_mode
 from src.app.core.settings import get_settings
 from src.app.dependencies import (
     enforce_rate_limit,
@@ -36,7 +36,7 @@ from src.app.services.file_store import FileStore
 from src.app.services.permissions import PermissionContextService
 from src.app.services.rate_limiter import RateLimitRule
 from src.app.services.thread_store import ThreadStore
-from src.backends.local import LocalBackend
+from src.backends.local import LocalSandbox as LocalBackend
 from src.config import build_chat_model, get_model_registry
 from src.logger import get_logger
 
@@ -53,6 +53,14 @@ def _extract_resume_command(request: "ChatRequest"):
     if resume_payload is None:
         return None
     return Command(resume=resume_payload)
+
+
+def _extract_resume_payload(request: "ChatRequest") -> dict[str, Any] | None:
+    metadata = getattr(request, "metadata", None) or {}
+    resume_payload = metadata.get("resume")
+    if not isinstance(resume_payload, dict):
+        return None
+    return resume_payload
 
 
 def _resolve_model_id(model_id: str) -> str:
@@ -226,6 +234,24 @@ def _extract_permission_override_mode(request: ChatRequest) -> PermissionMode | 
     return PermissionMode(raw_mode.strip())
 
 
+def _resolve_resume_grant_matcher(resume_payload: dict[str, Any]) -> tuple[str, str] | None:
+    grant = resume_payload.get("grant")
+    if not isinstance(grant, dict):
+        return None
+    scope = str(grant.get("scope", "")).strip().lower()
+    subject = str(grant.get("subject", "")).strip().lower()
+    matcher = grant.get("path")
+    if not isinstance(matcher, str) or not matcher.strip():
+        matcher = grant.get("command")
+    if not isinstance(matcher, str) or not matcher.strip():
+        return None
+    if scope not in {"thread", "user"}:
+        return None
+    if subject not in {member.value for member in PermissionSubject}:
+        return None
+    return scope, subject, matcher.strip()
+
+
 def _extract_requested_thread_id(request: ChatRequest) -> str | None:
     if request.thread_id and request.thread_id.strip():
         return request.thread_id.strip()
@@ -299,6 +325,29 @@ def _apply_permission_override(
 
         base_context = build_default_permission_context(workspace_root=workspace_root)
     return set_mode(base_context, override_mode)
+
+
+def _apply_resume_grant(
+    *,
+    request: ChatRequest,
+    service: PermissionContextService,
+    user_id: str,
+    thread_id: str,
+) -> None:
+    resume_payload = _extract_resume_payload(request)
+    if not resume_payload or not resume_payload.get("approved", False):
+        return
+    resolved = _resolve_resume_grant_matcher(resume_payload)
+    if resolved is None:
+        return
+    scope, subject, matcher = resolved
+    service.grant_rule_for_scope(
+        user_id=user_id,
+        thread_id=thread_id,
+        scope=scope,
+        subject=subject,
+        matcher=matcher,
+    )
 
 
 def _stage_attached_files(
@@ -475,6 +524,82 @@ async def _stream_response(
     yield "data: [DONE]\n\n"
 
 
+async def _stream_resume_response(
+    *,
+    agent: object,
+    agent_input: Any,
+    model: str,
+    thread_id: str,
+    backend,
+    store: FileStore,
+    current_user: AuthUser,
+    source_records: dict[str, dict[str, Any]] | None = None,
+    sandbox_paths: dict[str, str] | None = None,
+    target_file_id: str | None = None,
+) -> AsyncIterator[str]:
+    """Stream a resumed run via ainvoke to avoid provider streaming issues on resume."""
+    config = {"configurable": {"thread_id": thread_id}}
+    logger.info("Streaming resumed chat request started (model=%s, session_id=%s)", model, thread_id)
+
+    try:
+        result = await agent.ainvoke(agent_input, config=config)
+        last = result["messages"][-1]
+        content, thinking = _parse_content(last.content)
+        if thinking:
+            yield _sse({"reasoning_content": thinking}, model)
+        if content:
+            yield _sse({"content": content}, model)
+    except GraphInterrupt:
+        logger.info("GraphInterrupt raised in resumed streaming path (model=%s, session_id=%s)", model, thread_id)
+        try:
+            snapshot = await agent.aget_state(config)
+            interrupts = [
+                intr.value
+                for task in getattr(snapshot, "tasks", [])
+                for intr in getattr(task, "interrupts", [])
+            ]
+        except Exception:
+            logger.debug("aget_state not available or failed - skipping interrupt check")
+            interrupts = []
+        if interrupts:
+            yield _sse({"permission_request": interrupts[0]}, model)
+
+    if (
+        source_records
+        and sandbox_paths
+        and target_file_id
+        and target_file_id in source_records
+        and target_file_id in sandbox_paths
+        and source_records[target_file_id].get("filename", "").lower().endswith(".py")
+    ):
+        try:
+            output_file = _publish_edited_file(
+                source_records[target_file_id],
+                backend,
+                sandbox_paths[target_file_id],
+                store=store,
+                current_user=current_user,
+                thread_id=thread_id,
+            )
+            yield _sse(
+                {
+                    "output_file": output_file,
+                    "sandbox_path": sandbox_paths[target_file_id],
+                },
+                model,
+            )
+        except Exception as exc:
+            logger.exception("Failed to publish streamed output file after resume")
+            yield _sse(
+                {"reasoning_content": f"Edited file was created in sandbox but publishing failed: {exc}"},
+                model,
+            )
+
+    logger.info("Streaming resumed chat request finished (model=%s, session_id=%s)", model, thread_id)
+    yield _sse({}, model, finish_reason="stop")
+    yield "data: [DONE]\n\n"
+
+
 @router.get("/models")
 async def list_models():
     now = int(time.time())
@@ -604,6 +729,13 @@ async def chat_completions(
     )
     thread = _resolve_thread(request=request, current_user=current_user, thread_store=thread_store)
     thread_id = thread["id"]
+    permission_service = PermissionContextService(auth_repo, thread_store)
+    _apply_resume_grant(
+        request=request,
+        service=permission_service,
+        user_id=current_user.id,
+        thread_id=thread_id,
+    )
     file_ids = _extract_file_ids(request)
     backend_mode, local_root_dir = _extract_backend_selection(request)
     if backend_mode == "local":
@@ -616,7 +748,7 @@ async def chat_completions(
     else:
         backend = daytona_manager.get_backend(thread_id)
     workspace_root = _workspace_root_for_backend(backend)
-    permission_context = PermissionContextService(auth_repo, thread_store).build_effective_context(
+    permission_context = permission_service.build_effective_context(
         user_id=current_user.id,
         thread_id=thread_id,
         workspace_root=workspace_root,
@@ -681,8 +813,21 @@ async def chat_completions(
     config = {"configurable": {"thread_id": thread_id}}
 
     if request.stream:
-        return StreamingResponse(
-            _stream_response(
+        stream_iterator = (
+            _stream_resume_response(
+                agent=agent,
+                agent_input=agent_input,
+                model=resolved_model,
+                thread_id=thread_id,
+                backend=backend,
+                store=store,
+                current_user=current_user,
+                source_records=source_records,
+                sandbox_paths=sandbox_paths,
+                target_file_id=target_file_id,
+            )
+            if resume_command is not None
+            else _stream_response(
                 agent=agent,
                 agent_input=agent_input,
                 model=resolved_model,
@@ -694,7 +839,10 @@ async def chat_completions(
                 sandbox_paths=sandbox_paths,
                 target_file_id=target_file_id,
                 messages=effective_messages,
-            ),
+            )
+        )
+        return StreamingResponse(
+            stream_iterator,
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )

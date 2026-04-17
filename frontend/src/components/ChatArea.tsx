@@ -1,13 +1,25 @@
 import { useEffect, useRef } from "react";
-import type { ChatThread } from "../types";
+import type { ChatThread, PermissionMode, ThreadPermissionsBundle } from "../types";
 import MessageBubble from "./MessageBubble";
 
 export default function ChatArea({
   thread,
   onFollowUpClick,
+  threadPermissions,
+  onApproveOnce,
+  onApproveForChat,
+  onBypassForChat,
+  onPromoteThreadPermissions,
+  onOpenSecuritySettings,
 }: {
   thread: ChatThread | null;
   onFollowUpClick: (prompt: string) => void;
+  threadPermissions: ThreadPermissionsBundle | null;
+  onApproveOnce: (messageId: string) => Promise<void>;
+  onApproveForChat: (messageId: string, mode: PermissionMode) => Promise<void>;
+  onBypassForChat: (messageId: string) => Promise<void>;
+  onPromoteThreadPermissions: () => Promise<void>;
+  onOpenSecuritySettings: () => void;
 }) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -26,6 +38,12 @@ export default function ChatArea({
             message={message}
             isLastMessage={index === messages.length - 1}
             onFollowUpClick={onFollowUpClick}
+            threadPermissions={threadPermissions}
+            onApproveOnce={onApproveOnce}
+            onApproveForChat={onApproveForChat}
+            onBypassForChat={onBypassForChat}
+            onPromoteThreadPermissions={onPromoteThreadPermissions}
+            onOpenSecuritySettings={onOpenSecuritySettings}
           />
         ))}
         <div ref={bottomRef} />

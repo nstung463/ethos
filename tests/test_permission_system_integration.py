@@ -9,7 +9,7 @@ from starlette.testclient import TestClient
 
 from src.ai.permissions import PermissionMode
 from src.app import create_app
-from src.backends.local import LocalBackend
+from src.backends.local import LocalSandbox as LocalBackend
 
 
 @pytest.fixture()
@@ -345,10 +345,9 @@ def test_chat_completion_resumes_agent_with_command(
     captured = {}
 
     class _ResumeAgent:
-        async def astream_events(self, input_data, config=None, version=None):
+        async def ainvoke(self, input_data, config=None):
             captured["input"] = input_data
-            return
-            yield
+            return {"messages": [AIMessage(content="ok")]}
 
         async def aget_state(self, config):
             class _Snap:
@@ -372,3 +371,57 @@ def test_chat_completion_resumes_agent_with_command(
     assert response.status_code == 200
     assert isinstance(captured.get("input"), Command)
     assert captured["input"].resume == {"approved": True}
+
+
+def test_streaming_resume_uses_ainvoke_instead_of_astream_events(
+    client: TestClient,
+    auth_headers: dict[str, str],
+) -> None:
+    """Resume requests should avoid provider streaming and stream the final ainvoke result."""
+    import json
+    from unittest.mock import patch
+    from langgraph.types import Command
+
+    captured: dict[str, object] = {}
+
+    class _ResumeAgent:
+        async def astream_events(self, input_data, config=None, version=None):
+            raise AssertionError("resume stream path must not use astream_events")
+            yield
+
+        async def ainvoke(self, input_data, config=None):
+            captured["input"] = input_data
+            return {"messages": [AIMessage(content="resumed ok")]}
+
+        async def aget_state(self, config):
+            class _Snap:
+                tasks = []
+
+            return _Snap()
+
+    with patch("src.app.modules.chat.router.create_ethos_agent", return_value=_ResumeAgent()):
+        response = client.post(
+            "/v1/chat/completions",
+            json={
+                "model": "ethos",
+                "stream": True,
+                "messages": [{"role": "user", "content": "approve"}],
+                "metadata": {"resume": {"approved": True}},
+            },
+            headers=auth_headers,
+        )
+
+    assert response.status_code == 200
+    assert isinstance(captured.get("input"), Command)
+    assert captured["input"].resume == {"approved": True}
+    chunks = [
+        json.loads(line[len("data: "):])
+        for line in response.text.splitlines()
+        if line.startswith("data: ") and line != "data: [DONE]"
+    ]
+    content_chunks = [
+        c["choices"][0]["delta"]["content"]
+        for c in chunks
+        if c.get("choices", [{}])[0].get("delta", {}).get("content")
+    ]
+    assert content_chunks == ["resumed ok"]

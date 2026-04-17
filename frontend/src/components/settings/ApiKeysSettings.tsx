@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Check, Eye, EyeOff } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { UserApiKeys } from "../../types";
 
 export default function ApiKeysSettings({
@@ -9,6 +10,7 @@ export default function ApiKeysSettings({
   apiKeys: UserApiKeys;
   onSave: (apiKeys: UserApiKeys) => void;
 }) {
+  const { t } = useTranslation();
   const [draftKeys, setDraftKeys] = useState<UserApiKeys>(apiKeys);
   const [showKeys, setShowKeys] = useState({
     openrouter: false,
@@ -58,7 +60,7 @@ export default function ApiKeysSettings({
           type="button"
           onClick={() => handleToggleShow(key)}
           className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition"
-          title={showKeys[key] ? "Hide" : "Show"}
+          title={showKeys[key] ? t("settings.hide", "Hide") : t("settings.show", "Show")}
         >
           {showKeys[key] ? (
             <EyeOff size={16} strokeWidth={1.8} />
@@ -73,24 +75,24 @@ export default function ApiKeysSettings({
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">API Keys</h1>
+        <h1 className="mb-6 text-2xl font-semibold text-[var(--text-primary)]">{t("settings.apiKeys", "API Keys")}</h1>
         <p className="mb-6 text-sm text-[var(--text-soft)]">
-          Your keys stay in this browser and are only sent to your configured Ethos backend at request time.
+          {t("settings.apiKeysDesc", "Your keys stay in this browser and are only sent to your configured Ethos backend at request time.")}
         </p>
 
         <div className="mb-8 space-y-6">
           {renderKeyInput(
-            "OpenRouter API Key",
+            t("settings.openRouterKey", "OpenRouter API Key"),
             "openrouter",
             "sk-or-v1-..."
           )}
           {renderKeyInput(
-            "Anthropic API Key",
+            t("settings.anthropicKey", "Anthropic API Key"),
             "anthropic",
             "sk-ant-..."
           )}
           {renderKeyInput(
-            "OpenAI API Key",
+            t("settings.openaiKey", "OpenAI API Key"),
             "openai",
             "sk-proj-..."
           )}
@@ -102,12 +104,12 @@ export default function ApiKeysSettings({
             onClick={handleSave}
             className="rounded-lg bg-[var(--accent)] px-4 py-2 font-medium text-white transition hover:opacity-90"
           >
-            Save Keys
+            {t("settings.saveKeys", "Save Keys")}
           </button>
           {saved && (
             <span className="inline-flex items-center gap-1.5 text-sm text-[var(--success)]">
               <Check size={14} strokeWidth={2} />
-              Saved successfully
+              {t("settings.savedSuccessfully", "Saved successfully")}
             </span>
           )}
         </div>

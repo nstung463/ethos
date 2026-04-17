@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 export default function CodeBlock({ language, value }: { language?: string; value: string }) {
+  const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -20,7 +22,7 @@ export default function CodeBlock({ language, value }: { language?: string; valu
           type="button"
           className="rounded px-2 py-0.5 text-[10px] text-[var(--text-soft)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer sm:text-xs"
         >
-          {copied ? "Copied!" : "Copy"}
+          {copied ? t("common.copied", "Copied!") : t("common.copy", "Copy")}
         </button>
       </div>
       <pre className="overflow-x-auto bg-[var(--panel-code)] p-2.5 font-mono text-[11px] leading-relaxed whitespace-pre text-[var(--text-primary)] sm:p-4 sm:text-sm">

@@ -1,15 +1,14 @@
-"""read_file tool — read file contents with line numbers and optional pagination."""
+from __future__ import annotations
 
 from pathlib import Path
-from typing import Optional
 
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-from src.ai.permissions.evaluator import PermissionEvaluator
-from src.ai.permissions.filesystem_policy import FilesystemPolicy
-from src.ai.permissions.types import PermissionBehavior, PermissionContext, PermissionSubject
-from src.ai.tools.filesystem._sandbox import resolve
+from src.ai.filesystem import FilesystemService
+from src.ai.permissions.types import PermissionContext, PermissionSubject
+from src.ai.tools.filesystem._shared import permission_error
+from src.backends.protocol import FilesystemBackendProtocol
 
 DEFAULT_LIMIT = 200
 
@@ -20,7 +19,7 @@ class ReadFileInput(BaseModel):
         default=0,
         description="Line number to start reading from (0-indexed). Use for pagination of large files.",
     )
-    limit: Optional[int] = Field(
+    limit: int | None = Field(
         default=None,
         description=(
             f"Maximum number of lines to read (default: {DEFAULT_LIMIT}). "
@@ -29,55 +28,18 @@ class ReadFileInput(BaseModel):
     )
 
 
-def _read_file(root: Path, path: str, offset: int = 0, limit: Optional[int] = None) -> str:
-    target = resolve(root, path)
-    if not target.exists():
-        return f"Error: '{path}' does not exist."
-    if target.is_dir():
-        return f"Error: '{path}' is a directory. Use ls to list its contents."
+def build_read_file_tool(
+    root: Path,
+    backend: FilesystemBackendProtocol | None = None,
+    permission_context: PermissionContext | None = None,
+) -> StructuredTool:
+    filesystem = FilesystemService(root, backend=backend)
 
-    try:
-        all_lines = target.read_text(encoding="utf-8").splitlines()
-    except UnicodeDecodeError:
-        return f"Error: '{path}' is not a text file (binary content)."
-
-    total = len(all_lines)
-    start = max(0, offset)
-    end = total if limit is None else min(total, start + (limit or DEFAULT_LIMIT))
-    selected = all_lines[start:end]
-
-    if not selected and total > 0:
-        return f"[File has {total} lines, but offset={offset} is past the end.]"
-    if not selected:
-        return "(empty file)"
-
-    numbered = [f"{i + start + 1:>6}\t{line}" for i, line in enumerate(selected)]
-    result = "\n".join(numbered)
-
-    if end < total:
-        result += (
-            f"\n\n[Showing lines {start + 1}–{end} of {total}. "
-            f"Use offset={end} to read more.]"
-        )
-    return result
-
-
-def build_read_file_tool(root: Path, permission_context: PermissionContext | None = None) -> StructuredTool:
-    policy = FilesystemPolicy()
-    evaluator = PermissionEvaluator()
-
-    def _tool(path: str, offset: int = 0, limit: Optional[int] = None) -> str:
-        target = resolve(root, path)
-        if permission_context is not None:
-            decision = evaluator.evaluate(
-                context=permission_context,
-                subject=PermissionSubject.READ,
-                candidate=path,
-                policy_decision=policy.check_read(context=permission_context, target=target),
-            )
-            if decision.behavior is not PermissionBehavior.ALLOW:
-                return f"Permission {decision.behavior.value}: {decision.reason}"
-        return _read_file(root, path, offset, limit)
+    def _tool(path: str, offset: int = 0, limit: int | None = None) -> str:
+        blocked = permission_error(filesystem, permission_context, PermissionSubject.READ, path)
+        if blocked:
+            return blocked
+        return filesystem.read_file(path, offset=offset, limit=limit)
 
     return StructuredTool.from_function(
         name="read_file",
@@ -90,3 +52,6 @@ def build_read_file_tool(root: Path, permission_context: PermissionContext | Non
         ),
         args_schema=ReadFileInput,
     )
+
+
+__all__ = ["ReadFileInput", "build_read_file_tool"]

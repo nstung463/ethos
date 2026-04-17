@@ -1,15 +1,17 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, Eye, EyeOff, Plus, Trash2 } from "lucide-react";
 import type { ProviderProfile, ProviderType } from "../../types";
 import { PROVIDER_OPTIONS } from "../../constants";
-import { newEmptyProfile, saveProfiles, validateProfile } from "../../utils/profiles";
+import { newEmptyProfile, validateProfile } from "../../utils/profiles";
+import { useProfiles } from "../../context/ProfilesContext";
 
 // Default names and base URLs per provider — reduces friction for users
 const PROVIDER_DEFAULTS: Record<ProviderType, { name: string; baseUrl?: string }> = {
-  openrouter:        { name: "OpenRouter",         baseUrl: "https://openrouter.ai/api/v1" },
-  anthropic:         { name: "Anthropic" },
-  openai:            { name: "OpenAI" },
-  azure_openai:      { name: "Azure OpenAI" },
+  openrouter: { name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1" },
+  anthropic: { name: "Anthropic" },
+  openai: { name: "OpenAI" },
+  azure_openai: { name: "Azure OpenAI" },
   openai_compatible: { name: "Custom OpenAI" },
 };
 
@@ -30,25 +32,25 @@ function ProfileRow({
   onDelete: () => void;
   onSetActive: () => void;
 }) {
+  const { t } = useTranslation();
   const providerLabel =
     PROVIDER_OPTIONS.find((p) => p.value === profile.provider)?.label ?? profile.provider;
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${
-        isActive
+      className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition ${isActive
           ? "border-[var(--accent)] bg-[var(--accent-subtle)]"
           : "border-[var(--border-subtle)] bg-[var(--surface-soft)]"
-      }`}
+        }`}
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
           <span className="truncate text-sm font-medium text-[var(--text-primary)]">
-            {profile.name || "(unnamed)"}
+            {profile.name || t("settings.unnamed", "(unnamed)")}
           </span>
           {isActive && (
             <span className="shrink-0 rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-medium text-white">
-              Active
+              {t("settings.active", "Active")}
             </span>
           )}
         </div>
@@ -67,7 +69,7 @@ function ProfileRow({
             onClick={onSetActive}
             className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-2.5 py-1 text-xs text-[var(--text-soft)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
-            Use
+            {t("settings.use", "Use")}
           </button>
         )}
         <button
@@ -75,7 +77,7 @@ function ProfileRow({
           onClick={onEdit}
           className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-2.5 py-1 text-xs text-[var(--text-soft)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
         >
-          Edit
+          {t("settings.edit", "Edit")}
         </button>
         {confirmDelete ? (
           <button
@@ -83,14 +85,14 @@ function ProfileRow({
             onClick={onDelete}
             className="rounded-lg border border-[var(--danger)] bg-[var(--danger-subtle)] px-2.5 py-1 text-xs font-medium text-[var(--danger)] transition hover:bg-[var(--danger)] hover:text-white"
           >
-            Confirm?
+            {t("settings.confirm", "Confirm?")}
           </button>
         ) : (
           <button
             type="button"
             onClick={onDelete}
             className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-faint)] transition hover:border-[var(--danger)] hover:text-[var(--danger)]"
-            title="Delete profile"
+            title={t("settings.deleteProfile", "Delete profile")}
           >
             <Trash2 size={13} strokeWidth={1.8} />
           </button>
@@ -111,6 +113,7 @@ function ProfileForm({
   onSave: (p: ProviderProfile) => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState<ProviderProfile>(() => {
     // Pre-fill name and baseUrl for new (empty) profiles
     const defaults = PROVIDER_DEFAULTS[profile.provider];
@@ -158,7 +161,7 @@ function ProfileForm({
       {/* Name */}
       <div className="space-y-1.5">
         <label className="block text-xs font-medium text-[var(--text-secondary)]">
-          Profile name
+          {t("settings.profileName", "Profile name")}
         </label>
         <input
           value={form.name}
@@ -170,7 +173,7 @@ function ProfileForm({
 
       {/* Provider */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">Provider</label>
+        <label className="block text-xs font-medium text-[var(--text-secondary)]">{t("settings.provider", "Provider")}</label>
         <div className="relative">
           <select
             value={form.provider}
@@ -194,7 +197,7 @@ function ProfileForm({
 
       {/* Model */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">Model ID</label>
+        <label className="block text-xs font-medium text-[var(--text-secondary)]">{t("settings.modelId", "Model ID")}</label>
         <input
           value={form.model}
           onChange={(e) => set("model", e.target.value)}
@@ -213,7 +216,7 @@ function ProfileForm({
 
       {/* API Key */}
       <div className="space-y-1.5">
-        <label className="block text-xs font-medium text-[var(--text-secondary)]">API Key</label>
+        <label className="block text-xs font-medium text-[var(--text-secondary)]">{t("settings.apiKey", "API Key")}</label>
         <div className="flex gap-2">
           <input
             type={showKey ? "text" : "password"}
@@ -226,7 +229,7 @@ function ProfileForm({
             type="button"
             onClick={() => setShowKey((s) => !s)}
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--panel-bg)] text-[var(--text-soft)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
-            title={showKey ? "Hide key" : "Show key"}
+            title={showKey ? t("settings.hideKey", "Hide key") : t("settings.showKey", "Show key")}
           >
             {showKey ? <EyeOff size={15} strokeWidth={1.8} /> : <Eye size={15} strokeWidth={1.8} />}
           </button>
@@ -237,7 +240,7 @@ function ProfileForm({
       {(needsBaseUrl || isAzure) && (
         <div className="space-y-1.5">
           <label className="block text-xs font-medium text-[var(--text-secondary)]">
-            {isAzure ? "Azure Endpoint URL (optional)" : "Base URL"}
+            {isAzure ? t("settings.azureEndpointOptional", "Azure Endpoint URL (optional)") : t("settings.baseUrl", "Base URL")}
             {form.provider === "openai_compatible" && (
               <span className="ml-1 text-[var(--danger)]">*</span>
             )}
@@ -260,7 +263,7 @@ function ProfileForm({
         <>
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-[var(--text-secondary)]">
-              Deployment name <span className="text-[var(--danger)]">*</span>
+              {t("settings.deploymentName", "Deployment name")} <span className="text-[var(--danger)]">*</span>
             </label>
             <input
               value={form.deployment ?? ""}
@@ -271,7 +274,7 @@ function ProfileForm({
           </div>
           <div className="space-y-1.5">
             <label className="block text-xs font-medium text-[var(--text-secondary)]">
-              API version (optional)
+              {t("settings.apiVersionOptional", "API version (optional)")}
             </label>
             <input
               value={form.apiVersion ?? ""}
@@ -293,14 +296,14 @@ function ProfileForm({
           disabled={!!error}
           className="rounded-lg bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          Save
+          {t("settings.save", "Save")}
         </button>
         <button
           type="button"
           onClick={onCancel}
           className="rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-4 py-2 text-sm text-[var(--text-soft)] transition hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
         >
-          Cancel
+          {t("settings.cancel", "Cancel")}
         </button>
       </div>
     </form>
@@ -309,22 +312,15 @@ function ProfileForm({
 
 // ─── ProfilesSettings ─────────────────────────────────────────────────────────
 
-export default function ProfilesSettings({
-  profiles,
-  activeProfileId,
-  onSave,
-}: {
-  profiles: ProviderProfile[];
-  activeProfileId: string;
-  onSave: (profiles: ProviderProfile[], activeProfileId: string) => void;
-}) {
+export default function ProfilesSettings() {
+  const { t } = useTranslation();
+  const { profiles, activeProfileId, setActiveProfileId, saveProfiles } = useProfiles();
   const [editing, setEditing] = useState<ProviderProfile | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   function persist(nextProfiles: ProviderProfile[], nextActiveId: string) {
-    saveProfiles(nextProfiles);
-    onSave(nextProfiles, nextActiveId);
+    saveProfiles(nextProfiles, nextActiveId);
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
   }
@@ -350,7 +346,7 @@ export default function ProfilesSettings({
   }
 
   function handleSetActive(id: string) {
-    onSave(profiles, id);
+    setActiveProfileId(id);
   }
 
   function handleAddProfile() {
@@ -362,11 +358,10 @@ export default function ProfilesSettings({
     <div className="space-y-6">
       <div>
         <h1 className="mb-2 text-2xl font-semibold text-[var(--text-primary)]">
-          Provider Profiles
+          {t("settings.providerProfiles", "Provider Profiles")}
         </h1>
         <p className="text-sm text-[var(--text-soft)]">
-          Each profile stores a complete LLM configuration. Your keys stay in this browser and
-          are only sent to your configured Ethos backend at request time.
+          {t("settings.providerProfilesDesc", "Each profile stores a complete LLM configuration. Your keys stay in this browser and are only sent to your configured Ethos backend at request time.")}
         </p>
       </div>
 
@@ -374,7 +369,7 @@ export default function ProfilesSettings({
       <div className="space-y-2">
         {profiles.length === 0 && (
           <p className="rounded-xl border border-dashed border-[var(--border-subtle)] px-4 py-6 text-center text-sm text-[var(--text-faint)]">
-            No profiles yet. Add one to start chatting.
+            {t("settings.noProfilesDesc", "No profiles yet. Add one to start chatting.")}
           </p>
         )}
         {profiles.map((p) => (
@@ -407,14 +402,14 @@ export default function ProfilesSettings({
           className="flex items-center gap-2 rounded-lg border border-dashed border-[var(--border-subtle)] px-4 py-2 text-sm text-[var(--text-soft)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
         >
           <Plus size={14} strokeWidth={2} />
-          Add profile
+          {t("settings.addProfile", "Add profile")}
         </button>
       )}
 
       {saved && (
         <span className="inline-flex items-center gap-1.5 text-sm text-[var(--success)]">
           <Check size={14} strokeWidth={2} />
-          Saved
+          {t("settings.saved", "Saved")}
         </span>
       )}
     </div>

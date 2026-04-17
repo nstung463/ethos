@@ -12,7 +12,7 @@ from src.ai.permissions import PermissionContext
 from src.ai.agents.subagents import DEFAULT_SUBAGENTS, build_task_tool
 from src.ai.middleware import MemoryMiddleware, SkillsMiddleware
 from src.ai.prompts.catalog import BASE_SYSTEM_PROMPT
-from src.backends.protocol import FilesystemBackendProtocol
+from src.backends.protocol import SandboxProtocol as FilesystemBackendProtocol
 from src.config import get_mcp_servers, get_model, get_workspace
 from src.logger import get_logger
 from src.ai.tools.filesystem import build_filesystem_tools
