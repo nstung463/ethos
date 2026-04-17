@@ -31,3 +31,16 @@ Thumbs.db
 
 # Worktrees
 .worktrees/
+
+# IDE & AI tool configs
+.claude/
+.cursor/
+.codex-tmp/
+.aider*
+
+# Local docs & planning (not for repo)
+docs/
+plans/
+AGENTS.md
+CURSOR.md
+header.txt
