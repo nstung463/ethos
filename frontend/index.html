@@ -5,11 +5,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ethos</title>
+  <script>
+    (function() {
+      try {
+        var stored = localStorage.getItem('ethos-theme');
+        var theme = stored;
+        if (!theme) {
+          theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        
+        // Update theme-color meta tag
+        var themeColor = theme === 'dark' ? '#0a0a0a' : '#f0f4f8';
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', themeColor);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
   <link rel="icon" href="/src/assets/ethos1.png" type="image/png" />
-  <meta name="theme-color" content="#042f2e" />
+  <meta name="theme-color" content="#0a0a0a" />
 </head>
 
 <body>

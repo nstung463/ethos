@@ -23,6 +23,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    
+    // Update theme-color meta tag for browser UI consistency
+    const themeColor = theme === "dark" ? "#0a0a0a" : "#f0f4f8";
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) {
+      meta.setAttribute("content", themeColor);
+    }
   }, [theme]);
 
   // Optional: listen to system theme changes
