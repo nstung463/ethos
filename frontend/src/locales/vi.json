@@ -102,7 +102,7 @@
   },
   "chat": {
     "newConversation": "Trò chuyện mới",
-    "sandbox": "Giả lập (Sandbox)",
+    "sandbox": "Sandbox",
     "local": "Môi trường máy (Local)",
     "apiUnavailable": "Mất kết nối API",
     "newConversationReady": "Sẵn sàng",
@@ -180,6 +180,9 @@
   "common": {
     "english": "Tiếng Anh (English)",
     "vietnamese": "Tiếng Việt",
+    "japanese": "Tiếng Nhật (日本語)",
+    "spanish": "Tiếng Tây Ban Nha (Español)",
+    "french": "Tiếng Pháp (Français)",
     "copy": "Sao chép",
     "copied": "Đã chép!"
   },

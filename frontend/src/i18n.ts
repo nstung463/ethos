@@ -5,10 +5,16 @@ import LanguageDetector from "i18next-browser-languagedetector";
 
 import en from "./locales/en.json";
 import vi from "./locales/vi.json";
+// import ja from "./locales/ja.json";
+// import es from "./locales/es.json";
+// import fr from "./locales/fr.json";
 
 const resources = {
   en: { translation: en },
   vi: { translation: vi },
+  // ja: { translation: ja },
+  // es: { translation: es },
+  // fr: { translation: fr },
 };
 
 i18n
