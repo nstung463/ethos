@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type {
   PermissionBehavior,
   PermissionMode,
@@ -13,31 +14,31 @@ const EMPTY_PROFILE: PermissionProfile = {
   rules: [],
 };
 
-const MODE_OPTIONS: Array<{ value: PermissionMode | null; label: string; description: string }> = [
+const getModeOptions = (t: any): Array<{ value: PermissionMode | null; label: string; description: string }> => [
   {
     value: null,
-    label: "Use server default",
-    description: "No personal override. New chats inherit the backend default mode.",
+    label: t("settings.useServerDefault", "Use server default"),
+    description: t("settings.useServerDefaultDesc", "No personal override. New chats inherit the backend default mode."),
   },
   {
     value: "default",
-    label: "Default",
-    description: "Reads are generally allowed. Edits and risky shell actions ask first.",
+    label: t("settings.defaultPerm", "Default"),
+    description: t("settings.defaultPermDesc", "Reads are generally allowed. Edits and risky shell actions ask first."),
   },
   {
     value: "accept_edits",
-    label: "Accept edits",
-    description: "Workspace edits are allowed, but shell still goes through safety checks.",
+    label: t("settings.acceptEdits", "Accept edits"),
+    description: t("settings.acceptEditsDesc", "Workspace edits are allowed, but shell still goes through safety checks."),
   },
   {
     value: "bypass_permissions",
-    label: "Bypass permissions",
-    description: "Most asks are auto-allowed unless explicitly denied or safety-blocked.",
+    label: t("settings.bypassPermissions", "Bypass permissions"),
+    description: t("settings.bypassPermissionsDesc", "Most asks are auto-allowed unless explicitly denied or safety-blocked."),
   },
   {
     value: "dont_ask",
-    label: "Don't ask",
-    description: "Any action that would ask instead becomes a deny.",
+    label: t("settings.dontAsk", "Don't ask"),
+    description: t("settings.dontAskDesc", "Any action that would ask instead becomes a deny."),
   },
 ];
 
@@ -98,6 +99,7 @@ export default function SecuritySettings({
   error: string;
   onSave: (profile: PermissionProfile) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState<PermissionProfile>(EMPTY_PROFILE);
   const [workingDirectoriesText, setWorkingDirectoriesText] = useState("");
   const [rulesText, setRulesText] = useState("");
@@ -135,7 +137,7 @@ export default function SecuritySettings({
       window.setTimeout(() => setSaveState("idle"), 1200);
     } catch (saveError) {
       setSaveState("idle");
-      setLocalError(saveError instanceof Error ? saveError.message : "Failed to save security settings.");
+      setLocalError(saveError instanceof Error ? saveError.message : t("settings.failedSaveSecurity", "Failed to save security settings."));
     }
   }
 
@@ -148,12 +150,12 @@ export default function SecuritySettings({
       window.setTimeout(() => setSaveState("idle"), 1200);
     } catch (saveError) {
       setSaveState("idle");
-      setLocalError(saveError instanceof Error ? saveError.message : "Failed to reset security settings.");
+      setLocalError(saveError instanceof Error ? saveError.message : t("settings.failedResetSecurity", "Failed to reset security settings."));
     }
   }
 
   function handleClearLocalData() {
-    if (!window.confirm("Clear local UI state and reload this browser session?")) return;
+    if (!window.confirm(t("settings.confirmClearLocalData", "Clear local UI state and reload this browser session?"))) return;
     localStorage.clear();
     window.location.reload();
   }
@@ -161,18 +163,18 @@ export default function SecuritySettings({
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">Security</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)]">{t("settings.security", "Security")}</h1>
         <p className="text-sm leading-6 text-[var(--text-secondary)]">
-          Set your default permission profile for new chats. Temporary approvals during a chat still live on the thread until you save them as defaults.
+          {t("settings.securityDesc", "Set your default permission profile for new chats. Temporary approvals during a chat still live on the thread until you save them as defaults.")}
         </p>
       </div>
 
       <section className="space-y-4">
         <label className="block text-xs font-medium uppercase tracking-wider text-[var(--text-soft)]">
-          Default Permission Mode
+          {t("settings.defaultPermissionMode", "Default Permission Mode")}
         </label>
         <div className="grid gap-3">
-          {MODE_OPTIONS.map((option) => {
+          {getModeOptions(t).map((option) => {
             const selected = activeMode === option.value;
             return (
               <button
@@ -192,7 +194,7 @@ export default function SecuritySettings({
                   <span className="text-sm font-medium text-[var(--text-primary)]">{option.label}</span>
                   {selected ? (
                     <span className="rounded-full bg-[var(--accent)] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
-                      Active
+                      {t("settings.active", "Active")}
                     </span>
                   ) : null}
                 </div>
@@ -208,7 +210,7 @@ export default function SecuritySettings({
           htmlFor="permission-working-directories"
           className="block text-xs font-medium uppercase tracking-wider text-[var(--text-soft)]"
         >
-          Default Working Directories
+          {t("settings.defaultWorkingDirs", "Default Working Directories")}
         </label>
         <textarea
           id="permission-working-directories"
@@ -222,7 +224,7 @@ export default function SecuritySettings({
           className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--panel-elevated)] px-4 py-3 text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--border-strong)]"
         />
         <p className="text-xs leading-5 text-[var(--text-soft)]">
-          One path per line. Relative paths are resolved from the chat workspace root.
+          {t("settings.defaultWorkingDirsDesc", "One path per line. Relative paths are resolved from the chat workspace root.")}
         </p>
       </section>
 
@@ -231,7 +233,7 @@ export default function SecuritySettings({
           htmlFor="permission-rules"
           className="block text-xs font-medium uppercase tracking-wider text-[var(--text-soft)]"
         >
-          Default Rules
+          {t("settings.defaultRules", "Default Rules")}
         </label>
         <textarea
           id="permission-rules"
@@ -245,7 +247,7 @@ export default function SecuritySettings({
           className="w-full rounded-2xl border border-[var(--border-subtle)] bg-[var(--panel-elevated)] px-4 py-3 font-mono text-sm leading-6 text-[var(--text-primary)] outline-none transition focus:border-[var(--border-strong)]"
         />
         <p className="text-xs leading-5 text-[var(--text-soft)]">
-          Format: <code>subject | behavior | matcher</code>. Matcher is optional. Subjects: <code>read</code>, <code>edit</code>, <code>bash</code>, <code>powershell</code>.
+          {t("settings.formatText", "Format:")} <code>subject | behavior | matcher</code>. {t("settings.matcherOptional", "Matcher is optional.")} {t("settings.subjectsText", "Subjects:")} <code>read</code>, <code>edit</code>, <code>bash</code>, <code>powershell</code>.
         </p>
       </section>
 
@@ -262,7 +264,7 @@ export default function SecuritySettings({
           disabled={isLoading || saveState === "saving"}
           className="rounded-xl bg-[var(--accent)] px-4 py-2.5 text-sm font-medium text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saveState === "saving" ? "Saving..." : saveState === "saved" ? "Saved" : "Save defaults"}
+          {saveState === "saving" ? t("settings.saving", "Saving...") : saveState === "saved" ? t("settings.saved", "Saved") : t("settings.saveDefaults", "Save defaults")}
         </button>
         <button
           type="button"
@@ -270,25 +272,25 @@ export default function SecuritySettings({
           disabled={isLoading || saveState === "saving"}
           className="rounded-xl border border-[var(--border-subtle)] px-4 py-2.5 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          Reset permission defaults
+          {t("settings.resetPermissionDefaults", "Reset permission defaults")}
         </button>
       </div>
 
       <section className="space-y-4">
         <label className="block text-xs font-medium uppercase tracking-wider text-[var(--danger)]">
-          Danger Zone
+          {t("settings.dangerZone", "Danger Zone")}
         </label>
         <div className="rounded-2xl border border-[var(--danger-border)] bg-[var(--danger-bg)] p-4">
-          <h3 className="text-sm font-medium text-[var(--text-primary)]">Clear local browser data</h3>
+          <h3 className="text-sm font-medium text-[var(--text-primary)]">{t("settings.clearLocalBrowserData", "Clear local browser data")}</h3>
           <p className="mt-2 text-xs leading-5 text-[var(--text-soft)]">
-            Remove cached threads, profile settings, and auth state from this browser only. Server-side files and thread permissions are not deleted.
+            {t("settings.clearLocalBrowserDataDesc", "Remove cached threads, profile settings, and auth state from this browser only. Server-side files and thread permissions are not deleted.")}
           </p>
           <button
             type="button"
             onClick={handleClearLocalData}
             className="mt-4 rounded-xl border border-[var(--danger)]/40 px-3 py-2 text-sm font-medium text-[var(--danger)] transition hover:bg-[var(--danger)]/10"
           >
-            Clear local data
+            {t("settings.clearLocalDataBtn", "Clear local data")}
           </button>
         </div>
       </section>

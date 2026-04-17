@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import type { PermissionProfile, ProviderProfile, SettingsSection } from "../types";
+import type { PermissionProfile, SettingsSection } from "../types";
 import SettingsSubSidebar from "./SettingsSubSidebar";
 import GeneralSettings from "./settings/GeneralSettings";
 import AppearanceSettings from "./settings/AppearanceSettings";
@@ -10,11 +11,6 @@ import SecuritySettings from "./settings/SecuritySettings";
 
 export default function SettingsPage({
   onClose,
-  theme,
-  onThemeChange,
-  profiles,
-  activeProfileId,
-  onProfilesSave,
   initialSection = "general",
   userPermissions,
   permissionsLoading,
@@ -22,17 +18,13 @@ export default function SettingsPage({
   onPermissionsSave,
 }: {
   onClose: () => void;
-  theme: "dark" | "light";
-  onThemeChange: () => void;
-  profiles: ProviderProfile[];
-  activeProfileId: string;
-  onProfilesSave: (profiles: ProviderProfile[], activeProfileId: string) => void;
   initialSection?: SettingsSection;
   userPermissions: PermissionProfile | null;
   permissionsLoading: boolean;
   permissionsError: string;
   onPermissionsSave: (profile: PermissionProfile) => Promise<void>;
 }) {
+  const { t } = useTranslation();
   const [section, setSection] = useState<SettingsSection>(initialSection);
   const [visible, setVisible] = useState(false);
 
@@ -61,15 +53,9 @@ export default function SettingsPage({
         case "general":
           return <GeneralSettings />;
         case "appearance":
-          return <AppearanceSettings theme={theme} onThemeChange={onThemeChange} />;
+          return <AppearanceSettings />;
         case "profiles":
-          return (
-            <ProfilesSettings
-              profiles={profiles}
-              activeProfileId={activeProfileId}
-              onSave={onProfilesSave}
-            />
-          );
+          return <ProfilesSettings />;
       case "model-settings":
         return <ModelSettings />;
       case "security":
@@ -103,12 +89,12 @@ export default function SettingsPage({
       >
         {/* Modal Header */}
         <div className="flex items-center justify-between shrink-0 px-6 py-4 border-b border-[var(--border-subtle)]">
-          <h2 className="text-base font-semibold text-[var(--text-primary)]">Settings</h2>
+          <h2 className="text-base font-semibold text-[var(--text-primary)]">{t("settings.title", "Settings")}</h2>
           <button
             type="button"
             onClick={handleClose}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] transition"
-            title="Close settings"
+            title={t("settings.closeSettings", "Close settings")}
           >
             <X size={16} strokeWidth={1.8} />
           </button>

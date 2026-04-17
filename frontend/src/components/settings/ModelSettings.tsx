@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 const MODELS = [
   { id: "openai/gpt-4o", label: "GPT-4o" },
@@ -15,18 +16,19 @@ const MODES = [
 ] as const;
 
 export default function ModelSettings() {
-  const [defaultModel, setDefaultModel] = useState("openai/gpt-4o");
+  const { t } = useTranslation();
+  const [defaultModel, setDefaultModel] = useState("openai/gpt-4o");  
   const [defaultMode, setDefaultMode] = useState("build");
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">Model Settings</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">{t("settings.modelSettings", "Model Settings")}</h1>
 
         {/* Default Model Section */}
         <div className="space-y-4 mb-8">
           <label htmlFor="defaultModel" className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
-            Default Model
+            {t("settings.defaultModel", "Default Model")}
           </label>
           <select
             id="defaultModel"
@@ -42,14 +44,14 @@ export default function ModelSettings() {
             ))}
           </select>
           <p className="text-xs text-[var(--text-soft)]">
-            This model will be selected by default when starting new conversations.
+            {t("settings.defaultModelDesc", "This model will be selected by default when starting new conversations.")}
           </p>
         </div>
 
         {/* Default Mode Section */}
         <div className="space-y-4">
           <label htmlFor="defaultMode" className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
-            Default Mode
+            {t("settings.defaultMode", "Default Mode")}
           </label>
           <select
             id="defaultMode"
@@ -65,7 +67,7 @@ export default function ModelSettings() {
             ))}
           </select>
           <p className="text-xs text-[var(--text-soft)]">
-            Choose how the assistant should behave by default.
+            {t("settings.defaultModeDesc", "Choose how the assistant should behave by default.")}
           </p>
         </div>
       </div>

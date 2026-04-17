@@ -1,10 +1,12 @@
 import { Ellipsis, FolderSync, PenLine, Share2, SquareArrowOutUpRight, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation, type TFunction } from "react-i18next";
 import { createPortal } from "react-dom";
 import type { ChatThread } from "../types";
 import { getLatestPreview } from "../utils/threads";
+import { useThreadActions } from "../context/ThreadActionsContext";
 
-function formatTime(dateString: string) {
+function formatTime(dateString: string, t: TFunction) {
   const d = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -12,30 +14,25 @@ function formatTime(dateString: string) {
   const diffHours = Math.floor(diffMins / 60);
   const diffDays = Math.floor(diffHours / 24);
 
-  if (diffMins < 1) return "just now";
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
+  if (diffMins < 1) return t("time.justNow", "just now");
+  if (diffMins < 60) return t("time.minutesAgo", "{{count}}m ago", { count: diffMins });
+  if (diffHours < 24) return t("time.hoursAgo", "{{count}}h ago", { count: diffHours });
+  if (diffDays < 7) return t("time.daysAgo", "{{count}}d ago", { count: diffDays });
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-export default function ThreadItem({
-  thread,
-  isActive,
-  onSelect,
-  onRename,
-  onToggleFavorite,
-  onMoveToProject,
-  onDelete,
-}: {
-  thread: ChatThread;
-  isActive: boolean;
-  onSelect: () => void;
-  onRename: (title: string) => void;
-  onToggleFavorite: () => void;
-  onMoveToProject: (project: string) => void;
-  onDelete: () => void;
-}) {
+export default function ThreadItem({ thread }: { thread: ChatThread }) {
+  const { t } = useTranslation();
+  const {
+    activeThreadId,
+    onSelectThread,
+    onRenameThread,
+    onToggleFavoriteThread,
+    onMoveThreadToProject,
+    onDeleteThread,
+  } = useThreadActions();
+
+  const isActive = thread.id === activeThreadId;
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuMounted, setMenuMounted] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -43,6 +40,7 @@ export default function ThreadItem({
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [menuPlacement, setMenuPlacement] = useState<"top" | "bottom">("bottom");
+
   const latest = thread.messages.at(-1);
   const isRunning = latest?.role === "assistant" && latest.status === "streaming";
   const hasError = thread.messages.some((m) => m.status === "error");
@@ -54,15 +52,9 @@ export default function ThreadItem({
       const target = event.target as Node;
       const clickedInsideMenu = menuRef.current?.contains(target) ?? false;
       const clickedTrigger = menuButtonRef.current?.contains(target) ?? false;
-      if (!clickedInsideMenu && !clickedTrigger) {
-        setMenuOpen(false);
-      }
+      if (!clickedInsideMenu && !clickedTrigger) setMenuOpen(false);
     }
-
-    if (menuOpen) {
-      window.addEventListener("mousedown", handleClickOutside);
-    }
-
+    if (menuOpen) window.addEventListener("mousedown", handleClickOutside);
     return () => window.removeEventListener("mousedown", handleClickOutside);
   }, [menuOpen]);
 
@@ -75,18 +67,12 @@ export default function ThreadItem({
       setMenuVisible(false);
       timeoutId = window.setTimeout(() => setMenuMounted(false), 180);
     }
-    return () => {
-      if (timeoutId) {
-        window.clearTimeout(timeoutId);
-      }
-    };
+    return () => { if (timeoutId) window.clearTimeout(timeoutId); };
   }, [menuOpen]);
 
   useEffect(() => {
     if (!menuOpen || !menuMounted || !menuPosition) return;
-    const frameId = window.requestAnimationFrame(() => {
-      setMenuVisible(true);
-    });
+    const frameId = window.requestAnimationFrame(() => setMenuVisible(true));
     return () => window.cancelAnimationFrame(frameId);
   }, [menuOpen, menuMounted, menuPosition]);
 
@@ -119,16 +105,14 @@ export default function ThreadItem({
   function handleShare() {
     const url = `${window.location.origin}/app/${thread.id}`;
     void navigator.clipboard.writeText(url).catch(() => {
-      window.prompt("Copy conversation link", url);
+      window.prompt(t("chat.copyLink", "Copy conversation link"), url);
     });
     setMenuOpen(false);
   }
 
   function handleRename() {
-    const nextTitle = window.prompt("Rename conversation", thread.title)?.trim();
-    if (nextTitle) {
-      onRename(nextTitle);
-    }
+    const nextTitle = window.prompt(t("chat.renameConversation", "Rename conversation"), thread.title)?.trim();
+    if (nextTitle) onRenameThread(thread.id, nextTitle);
     setMenuOpen(false);
   }
 
@@ -138,10 +122,8 @@ export default function ThreadItem({
   }
 
   function handleMoveToProject() {
-    const nextProject = window.prompt("Move to project", thread.project ?? "");
-    if (nextProject !== null) {
-      onMoveToProject(nextProject.trim());
-    }
+    const nextProject = window.prompt(t("chat.moveToProject", "Move to project"), thread.project ?? "");
+    if (nextProject !== null) onMoveThreadToProject(thread.id, nextProject.trim());
     setMenuOpen(false);
   }
 
@@ -153,7 +135,7 @@ export default function ThreadItem({
           : "text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
       }`}
     >
-      <button type="button" onClick={onSelect} className="w-full text-left">
+      <button type="button" onClick={() => onSelectThread(thread.id)} className="w-full text-left">
         <div className="mb-0.5 flex items-center justify-between gap-2">
           <span className="flex min-w-0 items-center gap-1.5">
             {isFavorite ? <Star size={12} className="shrink-0 text-[var(--accent)]" fill="currentColor" /> : null}
@@ -167,7 +149,7 @@ export default function ThreadItem({
                 isActive ? "text-[var(--text-muted)]" : "text-[var(--text-soft)]"
               }`}
             >
-              {formatTime(thread.updatedAt)}
+              {formatTime(thread.updatedAt, t)}
             </span>
           </div>
         </div>
@@ -182,13 +164,13 @@ export default function ThreadItem({
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            setMenuOpen((value) => !value);
+            setMenuOpen((v) => !v);
           }}
           className={`flex h-6 w-6 items-center justify-center rounded-md opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
             isActive ? "text-[var(--text-muted)] hover:bg-[var(--surface-soft)]" : "text-[var(--text-soft)] hover:bg-[var(--surface-soft)]"
           }`}
-          title="Conversation options"
-          aria-label="Conversation options"
+          title={t("chat.conversationOptions", "Conversation options")}
+          aria-label={t("chat.conversationOptions", "Conversation options")}
         >
           <Ellipsis size={14} />
         </button>
@@ -213,34 +195,31 @@ export default function ThreadItem({
               >
                 <button type="button" onClick={handleShare} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
                   <Share2 size={16} />
-                  <span>Share</span>
+                  <span>{t("chat.share", "Share")}</span>
                 </button>
                 <button type="button" onClick={handleRename} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
                   <PenLine size={16} />
-                  <span>Rename</span>
+                  <span>{t("chat.rename", "Rename")}</span>
                 </button>
-                <button type="button" onClick={() => { onToggleFavorite(); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
+                <button type="button" onClick={() => { onToggleFavoriteThread(thread.id); setMenuOpen(false); }} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
                   <Star size={16} />
-                  <span>{isFavorite ? "Remove from favorites" : "Add to favorites"}</span>
+                  <span>{isFavorite ? t("chat.removeFromFavorites", "Remove from favorites") : t("chat.addToFavorites", "Add to favorites")}</span>
                 </button>
                 <button type="button" onClick={handleOpenInNewTab} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
                   <SquareArrowOutUpRight size={16} />
-                  <span>Open in new tab</span>
+                  <span>{t("chat.openInNewTab", "Open in new tab")}</span>
                 </button>
                 <button type="button" onClick={handleMoveToProject} className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--surface-hover)]">
                   <FolderSync size={16} />
-                  <span>Move to project</span>
+                  <span>{t("chat.moveToProject", "Move to project")}</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    onDelete();
-                    setMenuOpen(false);
-                  }}
+                  onClick={() => { onDeleteThread(thread.id); setMenuOpen(false); }}
                   className="flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm text-[var(--danger)] hover:bg-[var(--surface-hover)]"
                 >
                   <Trash2 size={16} />
-                  <span>Delete</span>
+                  <span>{t("chat.delete", "Delete")}</span>
                 </button>
               </div>,
               document.body,

@@ -1,11 +1,12 @@
+import { useTranslation } from "react-i18next";
 import type { SettingsSection } from "../types";
 
-const SETTINGS_ITEMS: { id: SettingsSection; label: string }[] = [
-  { id: "general", label: "General" },
-  { id: "appearance", label: "Appearance" },
-  { id: "profiles", label: "Profiles" },
-  { id: "model-settings", label: "Model Settings" },
-  { id: "security", label: "Security" },
+const SETTINGS_ITEMS: { id: SettingsSection; labelKey: string; defaultLabel: string }[] = [
+  { id: "general", labelKey: "settings.general", defaultLabel: "General" },
+  { id: "appearance", labelKey: "settings.appearance", defaultLabel: "Appearance" },
+  { id: "profiles", labelKey: "settings.profiles", defaultLabel: "Profiles" },
+  { id: "model-settings", labelKey: "settings.modelSettings", defaultLabel: "Model Settings" },
+  { id: "security", labelKey: "settings.security", defaultLabel: "Security" },
 ];
 
 export default function SettingsSubSidebar({
@@ -15,6 +16,8 @@ export default function SettingsSubSidebar({
   section: SettingsSection;
   onSectionChange: (section: SettingsSection) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <aside className="w-[200px] shrink-0 flex flex-col border-r border-[var(--border-subtle)] bg-[var(--panel-bg)] px-3 py-4 overflow-y-auto">
       {/* Profile Card */}
@@ -23,8 +26,8 @@ export default function SettingsSubSidebar({
           ET
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-xs font-medium text-[var(--text-primary)]">Ethos User</div>
-          <div className="truncate text-[10px] text-[var(--text-soft)]">Personal</div>
+          <div className="truncate text-xs font-medium text-[var(--text-primary)]">{t("settings.ethosUser", "Ethos User")}</div>
+          <div className="truncate text-[10px] text-[var(--text-soft)]">{t("settings.personal", "Personal")}</div>
         </div>
       </div>
 
@@ -44,7 +47,7 @@ export default function SettingsSubSidebar({
                 : "text-[var(--text-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
             }`}
           >
-            {item.label}
+            {t(item.labelKey, item.defaultLabel)}
           </button>
         ))}
       </nav>

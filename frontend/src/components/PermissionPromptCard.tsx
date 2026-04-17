@@ -1,5 +1,6 @@
 import { AlertTriangle, LockKeyhole, ShieldAlert, ShieldCheck } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { PermissionMode, PermissionRequest, ThreadPermissionsBundle } from "../types";
 
 export default function PermissionPromptCard({
@@ -19,6 +20,7 @@ export default function PermissionPromptCard({
   onPromoteThreadPermissions: () => Promise<void>;
   onOpenSecuritySettings: () => void;
 }) {
+  const { t } = useTranslation();
   const [status, setStatus] = useState("");
   const [busyAction, setBusyAction] = useState<"" | "approve_once" | "approve_chat" | "bypass_chat" | "promote">("");
 
@@ -31,12 +33,12 @@ export default function PermissionPromptCard({
       setStatus("");
       await fn();
       if (action === "promote") {
-        setStatus("Saved as your default permission profile.");
+        setStatus(t("permissions.savedDefault", "Saved as your default permission profile."));
       } else {
-        setStatus("Approval applied. Retrying the blocked action...");
+        setStatus(t("permissions.approvalApplied", "Approval applied. Retrying the blocked action..."));
       }
     } catch (error) {
-      setStatus(error instanceof Error ? error.message : "Permission update failed.");
+      setStatus(error instanceof Error ? error.message : t("permissions.updateFailed", "Permission update failed."));
     } finally {
       setBusyAction("");
     }
@@ -59,7 +61,7 @@ export default function PermissionPromptCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-[var(--text-primary)]">
-              {prompt.behavior === "ask" ? "This chat needs permission" : "This chat is blocked by permissions"}
+              {prompt.behavior === "ask" ? t("permissions.needsPermission", "This chat needs permission") : t("permissions.blockedByPermissions", "This chat is blocked by permissions")}
             </p>
             {effectiveMode ? (
               <span className="rounded-full border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-2 py-0.5 text-[10px] uppercase tracking-[0.16em] text-[var(--text-soft)]">
@@ -69,7 +71,7 @@ export default function PermissionPromptCard({
           </div>
           <p className="mt-1 text-sm leading-6 text-[var(--text-secondary)]">{prompt.reason}</p>
           <p className="mt-2 text-xs leading-5 text-[var(--text-soft)]">
-            Approvals here are temporary for this thread. Use settings only if you want to change your defaults.
+            {t("permissions.approvalsTemporary", "Approvals here are temporary for this thread. Use settings only if you want to change your defaults.")}
           </p>
         </div>
       </div>
@@ -81,7 +83,7 @@ export default function PermissionPromptCard({
           disabled={busyAction !== ""}
           className="rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busyAction === "approve_once" ? "Retrying..." : "Approve once"}
+          {busyAction === "approve_once" ? t("permissions.retrying", "Retrying...") : t("permissions.approveOnce", "Approve once")}
         </button>
         <button
           type="button"
@@ -94,7 +96,7 @@ export default function PermissionPromptCard({
           disabled={busyAction !== ""}
           className="rounded-xl border border-[var(--accent)]/40 bg-[color:color-mix(in_oklab,var(--accent)_10%,transparent)] px-3 py-2 text-sm font-medium text-[var(--text-primary)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busyAction === "approve_chat" ? "Retrying..." : "Approve for this chat"}
+          {busyAction === "approve_chat" ? t("permissions.retrying", "Retrying...") : t("permissions.approveChat", "Approve for this chat")}
         </button>
         <button
           type="button"
@@ -102,7 +104,7 @@ export default function PermissionPromptCard({
           disabled={busyAction !== ""}
           className="rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busyAction === "bypass_chat" ? "Retrying..." : "Bypass for this chat"}
+          {busyAction === "bypass_chat" ? t("permissions.retrying", "Retrying...") : t("permissions.bypassChat", "Bypass for this chat")}
         </button>
         <button
           type="button"
@@ -110,14 +112,14 @@ export default function PermissionPromptCard({
           disabled={busyAction !== ""}
           className="rounded-xl border border-[var(--border-subtle)] px-3 py-2 text-sm font-medium text-[var(--text-secondary)] transition hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {busyAction === "promote" ? "Saving..." : "Save current thread defaults"}
+          {busyAction === "promote" ? t("permissions.saving", "Saving...") : t("permissions.saveCurrentThread", "Save current thread defaults")}
         </button>
         <button
           type="button"
           onClick={onOpenSecuritySettings}
           className="rounded-xl px-3 py-2 text-sm font-medium text-[var(--accent)] transition hover:bg-[color:color-mix(in_oklab,var(--accent)_10%,transparent)]"
         >
-          Open Security Settings
+          {t("permissions.openSecuritySettings", "Open Security Settings")}
         </button>
       </div>
 

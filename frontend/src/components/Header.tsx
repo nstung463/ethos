@@ -1,32 +1,30 @@
 import { ChevronDown, Ellipsis, FolderOpen, Moon, Share2, SunMedium, UsersRound } from "lucide-react";
-import type { ChatThread, ProviderProfile } from "../types";
+import { useTranslation } from "react-i18next";
+import { useTheme } from "../context/ThemeContext";
+import { useProfiles } from "../context/ProfilesContext";
+import type { ChatThread } from "../types";
 import { getModeConfig } from "../constants";
 
 export default function Header({
   thread,
-  profiles,
-  activeProfileId,
   onProfileChange,
   backendMode,
   localRootDir,
   onBackendModeChange,
   onImportLocalProject,
-  theme,
-  onToggleTheme,
   showConversationActions,
 }: {
   thread: ChatThread | null;
-  profiles: ProviderProfile[];
-  activeProfileId: string;
   onProfileChange: (profileId: string) => void;
   backendMode: "sandbox" | "local";
   localRootDir: string;
   onBackendModeChange: (mode: "sandbox" | "local") => void;
   onImportLocalProject: () => void;
-  theme: "dark" | "light";
-  onToggleTheme: () => void;
   showConversationActions: boolean;
 }) {
+  const { t } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+  const { profiles, activeProfileId } = useProfiles();
   const mode = thread?.mode ?? "build";
   const modeConfig = getModeConfig(mode);
 
@@ -34,7 +32,7 @@ export default function Header({
     <div className="flex shrink-0 items-center justify-between gap-2 border-b border-[var(--border-subtle)] bg-[var(--app-bg)] px-3 py-2.5 sm:px-4 sm:py-3">
       <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <h1 className="truncate text-[clamp(0.85rem,1.8vw,1rem)] font-medium text-[var(--text-primary)]">
-          {thread?.title || "New conversation"}
+          {thread?.title || t("chat.newConversation", "New conversation")}
         </h1>
         <span className="shrink-0 whitespace-nowrap rounded-full border border-[var(--border-subtle)] bg-[var(--surface-badge)] px-1.5 py-0.5 text-[9px] text-[var(--text-soft)] sm:px-2 sm:text-xs">
           {modeConfig.label}
@@ -47,24 +45,24 @@ export default function Header({
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
-              title="Share conversation"
-              aria-label="Share conversation"
+              title={t("chat.shareConversation", "Share conversation")}
+              aria-label={t("chat.shareConversation", "Share conversation")}
             >
               <Share2 size={15} strokeWidth={1.8} />
             </button>
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
-              title="Conversation members"
-              aria-label="Conversation members"
+              title={t("chat.conversationMembers", "Conversation members")}
+              aria-label={t("chat.conversationMembers", "Conversation members")}
             >
               <UsersRound size={15} strokeWidth={1.8} />
             </button>
             <button
               type="button"
               className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
-              title="More options"
-              aria-label="More options"
+              title={t("chat.moreOptions", "More options")}
+              aria-label={t("chat.moreOptions", "More options")}
             >
               <Ellipsis size={15} strokeWidth={1.8} />
             </button>
@@ -73,10 +71,10 @@ export default function Header({
 
         <button
           type="button"
-          onClick={onToggleTheme}
+          onClick={toggleTheme}
           className="flex h-8 w-8 items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-soft)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer"
-          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          title={theme === "dark" ? t("chat.switchLightMode", "Switch to light mode") : t("chat.switchDarkMode", "Switch to dark mode")}
+          aria-label={theme === "dark" ? t("chat.switchLightMode", "Switch to light mode") : t("chat.switchDarkMode", "Switch to dark mode")}
         >
           {theme === "dark" ? (
             <SunMedium size={15} strokeWidth={1.8} />
@@ -102,10 +100,10 @@ export default function Header({
             <ChevronDown size={10} strokeWidth={1.8} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" />
           </div>
         ) : (
-          <span className="text-xs text-[var(--text-faint)]">No profiles</span>
+          <span className="text-xs text-[var(--text-faint)]">{t("chat.noProfiles", "No profiles")}</span>
         )}
 
-        <div className="flex items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] p-0.5" title="Execution backend">
+        <div className="flex items-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] p-0.5" title={t("chat.executionBackend", "Execution backend")}>
           <button
             type="button"
             onClick={() => onBackendModeChange("sandbox")}
@@ -115,7 +113,7 @@ export default function Header({
                 : "text-[var(--text-faint)] hover:text-[var(--text-secondary)]"
             }`}
           >
-            Sandbox
+            {t("chat.sandbox", "Sandbox")}
           </button>
           <button
             type="button"
@@ -126,7 +124,7 @@ export default function Header({
                 : "text-[var(--text-faint)] hover:text-[var(--text-secondary)]"
             }`}
           >
-            Local
+            {t("chat.local", "Local")}
           </button>
         </div>
 
@@ -135,11 +133,11 @@ export default function Header({
             type="button"
             onClick={onImportLocalProject}
             className="inline-flex max-w-[160px] items-center gap-1.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] px-2.5 py-1 text-[10px] text-[var(--text-secondary)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)] cursor-pointer sm:max-w-[220px] sm:py-1.5 sm:text-xs"
-            title={localRootDir ? `Change folder: ${localRootDir}` : "Select project folder"}
-            aria-label="Select project folder"
+            title={localRootDir ? t("chat.changeFolder", "Change folder: {{dir}}", { dir: localRootDir }) : t("chat.selectProjectFolder", "Select project folder")}
+            aria-label={t("chat.selectProjectFolder", "Select project folder")}
           >
             <FolderOpen size={12} strokeWidth={1.9} className="shrink-0" />
-            <span className="truncate">{localRootDir || "Select folder"}</span>
+            <span className="truncate">{localRootDir || t("chat.selectFolder", "Select folder")}</span>
           </button>
         ) : null}
       </div>

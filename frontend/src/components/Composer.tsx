@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, KeyboardEvent, useEffect, useRef, useState } from "react";
 import { ArrowUp, Cloud, HardDrive, Paperclip, PenTool, Plus, Puzzle, Square, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import type { Attachment, ComposerMode, ModeConfig } from "../types";
 
 function SlackLogo() {
@@ -97,6 +98,7 @@ export default function Composer({
   onModeChange: (mode: ComposerMode) => void;
   onSuggestion: (text: string) => void;
 }) {
+  const { t } = useTranslation();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -141,7 +143,7 @@ export default function Composer({
 
   const canSend = (!!draft.trim() || attachments.length > 0) && !!activeModel && !isStreaming && !isUploading;
   const noProfile = !activeModel;
-  const placeholder = isLanding ? "Delegate a task or ask a question..." : "Send message to Ethos";
+  const placeholder = isLanding ? t("composer.placeholder", "Delegate a task or ask a question...") : t("composer.placeholderChat", "Send message to Ethos");
   const landingApps = [
     {
       label: "Slack",
@@ -224,7 +226,7 @@ export default function Composer({
                   type="button"
                   onClick={() => onRemoveAttachment(attachment.id)}
                   className="rounded-full p-0.5 text-[var(--text-faint)] transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--text-primary)]"
-                  title="Remove attachment"
+                  title={t("composer.removeAttachment", "Remove attachment")}
                 >
                   <X size={12} strokeWidth={2} />
                 </button>
@@ -254,7 +256,7 @@ export default function Composer({
                 className={`flex items-center justify-center rounded-lg border border-[var(--border-subtle)] bg-[var(--surface-soft)] text-[var(--text-faint)] transition-all hover:border-[var(--border-strong)] hover:bg-[var(--surface-hover)] hover:text-[var(--text-secondary)] cursor-pointer ${
                   variant === "chat" ? "h-8 w-8" : "h-10 w-10"
                 }`}
-                title="Add attachment or action"
+                title={t("composer.addAttachment", "Add attachment or action")}
               >
                 <Plus size={variant === "chat" ? 14 : 16} strokeWidth={1.75} />
               </button>
@@ -263,31 +265,36 @@ export default function Composer({
                 <div className="absolute bottom-full left-0 z-50 mb-2 w-56 rounded-xl border border-[var(--border-strong)] bg-[var(--panel-elevated)] py-1.5 shadow-xl" style={{ boxShadow: `0 20px 45px var(--shadow-panel)` }}>
                   {[
                     {
-                      label: "Google Drive",
+                      id: "drive",
+                      label: t("composer.googleDrive", "Google Drive"),
                       icon: <Cloud size={16} strokeWidth={1.8} />,
                     },
                     {
-                      label: "OneDrive",
+                      id: "onedrive",
+                      label: t("composer.oneDrive", "OneDrive"),
                       icon: <HardDrive size={16} strokeWidth={1.8} />,
                     },
                     {
-                      label: "Figma",
+                      id: "figma",
+                      label: t("composer.figma", "Figma"),
                       icon: <PenTool size={16} strokeWidth={1.8} />,
                     },
                     {
-                      label: "Use Skills",
+                      id: "skills",
+                      label: t("composer.useSkills", "Use Skills"),
                       icon: <Puzzle size={16} strokeWidth={1.8} />,
                     },
                     {
-                      label: "Add from local files",
+                      id: "local",
+                      label: t("composer.addFromLocal", "Add from local files"),
                       icon: <Paperclip size={16} strokeWidth={1.8} />,
                     },
                   ].map((item) => (
                     <button
-                      key={item.label}
+                      key={item.id}
                       type="button"
                       onClick={() => {
-                        if (item.label === "Add from local files") {
+                        if (item.id === "local") {
                           handleLocalFileClick();
                         }
                         setMenuOpen(false);
@@ -323,7 +330,7 @@ export default function Composer({
                   variant === "chat" ? "h-8 w-8" : "h-10 w-10"
                 }`}
                 style={{ background: "color-mix(in oklab, var(--danger) 12%, transparent)", borderColor: "color-mix(in oklab, var(--danger) 30%, transparent)" }}
-                title="Stop generation"
+                title={t("composer.stopGeneration", "Stop generation")}
               >
                 <Square size={variant === "chat" ? 14 : 16} fill="currentColor" strokeWidth={0} />
               </button>
@@ -334,7 +341,7 @@ export default function Composer({
                 className={`flex shrink-0 items-center justify-center rounded-lg bg-[var(--text-primary)] text-[var(--app-bg)] transition-all hover:opacity-90 cursor-pointer disabled:cursor-not-allowed disabled:opacity-20 ${
                   variant === "chat" ? "h-8 w-8" : "h-10 w-10"
                 }`}
-                title="Send message"
+                title={t("composer.sendMessage", "Send message")}
               >
                 <ArrowUp size={variant === "chat" ? 14 : 16} strokeWidth={1.9} />
               </button>
@@ -345,7 +352,7 @@ export default function Composer({
             <div className="mt-2 border-t border-[var(--border-subtle)] px-4 pb-3 pt-3 sm:px-5">
               <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-[var(--text-soft)]">
                 <div className="min-w-0">
-                  <span className="font-medium text-[var(--text-muted)]">Use your apps with Ethos</span>
+                  <span className="font-medium text-[var(--text-muted)]">{t("emptyState.useYourApps", "Use your apps with Ethos")}</span>
                 </div>
                 <div className="flex max-w-full flex-wrap items-center justify-end gap-2">
                   {landingApps.map(({ label, icon: Icon, tint }) => (
@@ -379,16 +386,16 @@ export default function Composer({
                 ))}
               </div>
               <span className={`ml-1 shrink-0 text-[10px] sm:text-xs ${noProfile ? "text-[var(--danger)]" : "text-[var(--text-fainter)]"}`}>
-                {noProfile ? "Add a profile in Settings" : activeModel}
+                {noProfile ? t("composer.addProfileHint", "Add a profile in Settings") : activeModel}
               </span>
             </div>
           </div>
         ) : (
           <div className="mt-3 flex items-center justify-between px-1 text-xs text-[var(--text-faint)]">
             <span className={noProfile ? "text-[var(--danger)]" : undefined}>
-              {noProfile ? "Add a profile in Settings to start chatting" : activeModel}
+              {noProfile ? t("composer.addProfileToChat", "Add a profile in Settings to start chatting") : activeModel}
             </span>
-            <span>Enter to send, Shift+Enter for a new line</span>
+            <span>{t("composer.helpText", "Enter to send, Shift+Enter for a new line")}</span>
           </div>
         )}
       </form>

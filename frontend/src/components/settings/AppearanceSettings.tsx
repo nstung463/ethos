@@ -1,50 +1,43 @@
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
+import { useTheme } from "../../context/ThemeContext";
 
 type ThemeMode = "dark" | "light" | "system";
 
-export default function AppearanceSettings({
-  theme,
-  onThemeChange,
-}: {
-  theme: "dark" | "light";
-  onThemeChange: () => void;
-}) {
+export default function AppearanceSettings() {
+  const { t } = useTranslation();
+  const { theme, setTheme } = useTheme();
   const [fontSize, setFontSize] = useState(14);
-  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
+  // Initialize from context so no flash when settings open in light mode
+  const [themeMode, setThemeMode] = useState<ThemeMode>(theme);
 
+  // Keep local state in sync if theme is toggled externally (e.g., Header button)
   useEffect(() => {
-    const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    const systemTheme = isDark ? "dark" : "light";
-
-    if (theme === systemTheme) {
-      setThemeMode("system");
-    } else {
+    if (themeMode !== "system") {
       setThemeMode(theme);
     }
   }, [theme]);
 
   const handleThemeSelect = (mode: ThemeMode) => {
     setThemeMode(mode);
-
     if (mode === "system") {
-      const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const systemTheme = isDark ? "dark" : "light";
+      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
       if (theme !== systemTheme) {
-        onThemeChange();
+        setTheme(systemTheme);
       }
     } else if (mode !== theme) {
-      onThemeChange();
+      setTheme(mode);
     }
   };
 
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">Appearance</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text-primary)] mb-6">{t("settings.appearance", "Appearance")}</h1>
 
         <div className="space-y-4 mb-8">
           <label className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
-            Theme
+            {t("settings.theme", "Theme")}
           </label>
           <div className="flex gap-4">
             <button
@@ -57,7 +50,7 @@ export default function AppearanceSettings({
               }`}
             >
               <div className="w-20 h-12 rounded-lg bg-gradient-to-b from-white to-gray-100 border border-gray-300" />
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Light</span>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">{t("settings.light", "Light")}</span>
             </button>
 
             <button
@@ -70,7 +63,7 @@ export default function AppearanceSettings({
               }`}
             >
               <div className="w-20 h-12 rounded-lg bg-gradient-to-b from-gray-900 to-black border border-gray-700" />
-              <span className="text-xs font-medium text-[var(--text-secondary)]">Dark</span>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">{t("settings.dark", "Dark")}</span>
             </button>
 
             <button
@@ -83,17 +76,17 @@ export default function AppearanceSettings({
               }`}
             >
               <div className="w-20 h-12 rounded-lg bg-gradient-to-r from-gray-100 to-gray-900 border border-gray-400" />
-              <span className="text-xs font-medium text-[var(--text-secondary)]">System</span>
+              <span className="text-xs font-medium text-[var(--text-secondary)]">{t("settings.system", "System")}</span>
             </button>
           </div>
           <p className="text-xs text-[var(--text-soft)]">
-            {themeMode === "system" && "Uses your system's theme preference."}
+            {themeMode === "system" && t("settings.usesSystemTheme", "Uses your system's theme preference.")}
           </p>
         </div>
 
         <div className="space-y-4">
           <label htmlFor="fontSize" className="text-xs font-medium uppercase tracking-wider text-[var(--text-soft)] block">
-            Font Size
+            {t("settings.fontSize", "Font Size")}
           </label>
           <div className="space-y-3">
             <input
@@ -114,7 +107,7 @@ export default function AppearanceSettings({
               className="p-3 rounded-lg bg-[var(--surface-soft)] border border-[var(--border-subtle)] text-center transition"
               style={{ fontSize: `${fontSize}px` }}
             >
-              Sample text at {fontSize}px
+              {t("settings.sampleText", "Sample text at {{size}}px", { size: fontSize })}
             </div>
           </div>
         </div>
