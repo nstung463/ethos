@@ -130,6 +130,28 @@ textarea {
   }
 }
 
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% center;
+  }
+
+  100% {
+    background-position: -200% center;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    110deg,
+    var(--surface-soft) 0%,
+    var(--surface-hover) 40%,
+    var(--surface-soft) 60%,
+    var(--surface-soft) 100%
+  );
+  background-size: 300% auto;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
 @keyframes thinking-shimmer {
   0% {
     background-position: 200% center;

@@ -12,6 +12,7 @@ import ChatArea from "./components/ChatArea";
 import Composer from "./components/Composer";
 import EmptyState from "./components/EmptyState";
 import SettingsPage from "./components/SettingsPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useTheme } from "./context/ThemeContext";
 import { useProfiles } from "./context/ProfilesContext";
 import { useThreads } from "./context/ThreadsContext";
@@ -19,6 +20,7 @@ import { ThreadActionsContext } from "./context/ThreadActionsContext";
 import { usePermissions } from "./hooks/usePermissions";
 import { useChat } from "./hooks/useChat";
 import { useFileUpload } from "./hooks/useFileUpload";
+import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 const quickActionIcons = [Presentation, Shapes, MonitorSmartphone, Sparkles];
 
@@ -125,6 +127,8 @@ function ChatWorkspace() {
     setAppView("settings");
   }, []);
 
+  const closeSettings = useCallback(() => setAppView("chat"), []);
+
   const handleNewChat = useCallback(() => {
     chat.handleStop();
     chat.setDraft("");
@@ -226,6 +230,18 @@ function ChatWorkspace() {
     }
   }
 
+  // ── Keyboard Shortcuts ────────────────────────────────────────────────────
+
+  useKeyboardShortcuts({
+    appView,
+    isStreaming: chat.isStreaming,
+    onNewChat: handleNewChat,
+    onOpenSettings: openSettings,
+    onToggleSidebar: () => setSidebarCollapsed((v) => !v),
+    onStop: chat.handleStop,
+    onCloseSettings: closeSettings,
+  });
+
   // ── Render ────────────────────────────────────────────────────────────────
 
   const threadActionsValue = useMemo(() => ({
@@ -251,10 +267,12 @@ function ChatWorkspace() {
   return (
     <ThreadActionsContext.Provider value={threadActionsValue}>
       <div className="flex h-screen overflow-hidden bg-[var(--app-bg)] text-[var(--text-primary)]">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed((v) => !v)}
-        />
+        <ErrorBoundary label="Sidebar">
+          <Sidebar
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((v) => !v)}
+          />
+        </ErrorBoundary>
 
         <div className="flex min-w-0 flex-1 flex-col">
           <Header
@@ -269,39 +287,43 @@ function ChatWorkspace() {
 
           {hasMessages ? (
             <>
-              <ChatArea
-                thread={activeThread}
-                onFollowUpClick={chat.setDraft}
-                threadPermissions={permissions.threadPermissions}
-                onApproveOnce={chat.handleApproveOnce}
-                onApproveForChat={chat.handleApproveForChat}
-                onBypassForChat={chat.handleBypassForChat}
-                onPromoteThreadPermissions={() =>
-                  permissions.handlePromoteThreadPermissions(activeThread?.remoteId ?? "")
-                }
-                onOpenSecuritySettings={() => openSettings("security")}
-              />
+              <ErrorBoundary label="Chat area">
+                <ChatArea
+                  thread={activeThread}
+                  onFollowUpClick={chat.setDraft}
+                  threadPermissions={permissions.threadPermissions}
+                  onApproveOnce={chat.handleApproveOnce}
+                  onApproveForChat={chat.handleApproveForChat}
+                  onBypassForChat={chat.handleBypassForChat}
+                  onPromoteThreadPermissions={() =>
+                    permissions.handlePromoteThreadPermissions(activeThread?.remoteId ?? "")
+                  }
+                  onOpenSecuritySettings={() => openSettings("security")}
+                />
+              </ErrorBoundary>
 
-              <Composer
-                draft={chat.draft}
-                mode={activeMode}
-                modeConfig={modeConfig}
-                variant="chat"
-                isStreaming={chat.isStreaming}
-                isUploading={fileUpload.isUploading}
-                activeModel={activeProfile?.name ?? activeModel}
-                attachments={activeThread?.attachments ?? []}
-                status={status}
-                error={error}
-                suggestionPrompts={CHAT_SUGGESTIONS}
-                onChange={chat.setDraft}
-                onSubmit={chat.handleSubmit}
-                onStop={chat.handleStop}
-                onUploadFiles={fileUpload.handleUploadFiles}
-                onRemoveAttachment={fileUpload.handleRemoveAttachment}
-                onModeChange={handleModeChange}
-                onSuggestion={chat.setDraft}
-              />
+              <ErrorBoundary label="Composer">
+                <Composer
+                  draft={chat.draft}
+                  mode={activeMode}
+                  modeConfig={modeConfig}
+                  variant="chat"
+                  isStreaming={chat.isStreaming}
+                  isUploading={fileUpload.isUploading}
+                  activeModel={activeProfile?.name ?? activeModel}
+                  attachments={activeThread?.attachments ?? []}
+                  status={status}
+                  error={error}
+                  suggestionPrompts={CHAT_SUGGESTIONS}
+                  onChange={chat.setDraft}
+                  onSubmit={chat.handleSubmit}
+                  onStop={chat.handleStop}
+                  onUploadFiles={fileUpload.handleUploadFiles}
+                  onRemoveAttachment={fileUpload.handleRemoveAttachment}
+                  onModeChange={handleModeChange}
+                  onSuggestion={chat.setDraft}
+                />
+              </ErrorBoundary>
             </>
           ) : (
             <div className="flex flex-1 items-center justify-center overflow-y-auto px-4 pb-4 sm:px-6 landing-bg">
@@ -311,26 +333,28 @@ function ChatWorkspace() {
                 </div>
 
                 <div className="mx-auto max-w-3xl w-full p-2 lg:p-3 rounded-[36px] composer-landing-container">
-                  <Composer
-                    draft={chat.draft}
-                    mode={activeMode}
-                    modeConfig={modeConfig}
-                    variant="landing"
-                    isStreaming={chat.isStreaming}
-                    isUploading={fileUpload.isUploading}
-                    activeModel={activeProfile?.name ?? activeModel}
-                    attachments={activeThread?.attachments ?? []}
-                    status={status}
-                    error={error}
-                    suggestionPrompts={CHAT_SUGGESTIONS}
-                    onChange={chat.setDraft}
-                    onSubmit={chat.handleSubmit}
-                    onStop={chat.handleStop}
-                    onUploadFiles={fileUpload.handleUploadFiles}
-                    onRemoveAttachment={fileUpload.handleRemoveAttachment}
-                    onModeChange={handleModeChange}
-                    onSuggestion={chat.setDraft}
-                  />
+                  <ErrorBoundary label="Composer">
+                    <Composer
+                      draft={chat.draft}
+                      mode={activeMode}
+                      modeConfig={modeConfig}
+                      variant="landing"
+                      isStreaming={chat.isStreaming}
+                      isUploading={fileUpload.isUploading}
+                      activeModel={activeProfile?.name ?? activeModel}
+                      attachments={activeThread?.attachments ?? []}
+                      status={status}
+                      error={error}
+                      suggestionPrompts={CHAT_SUGGESTIONS}
+                      onChange={chat.setDraft}
+                      onSubmit={chat.handleSubmit}
+                      onStop={chat.handleStop}
+                      onUploadFiles={fileUpload.handleUploadFiles}
+                      onRemoveAttachment={fileUpload.handleRemoveAttachment}
+                      onModeChange={handleModeChange}
+                      onSuggestion={chat.setDraft}
+                    />
+                  </ErrorBoundary>
                 </div>
 
                 <div className="mx-auto mt-3 flex max-w-4xl flex-wrap items-center justify-center gap-2 px-2">
@@ -372,7 +396,7 @@ function ChatWorkspace() {
 
         {appView === "settings" ? (
           <SettingsPage
-            onClose={() => setAppView("chat")}
+            onClose={closeSettings}
             initialSection={settingsSection}
             userPermissions={permissions.userPermissions}
             permissionsLoading={permissions.permissionsLoading}

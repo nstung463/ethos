@@ -7,6 +7,7 @@ import "./styles.css";
 import { ThemeProvider } from "./context/ThemeContext";
 import { ProfilesProvider } from "./context/ProfilesContext";
 import { ThreadsProvider } from "./context/ThreadsContext";
+import { ToastProvider } from "./components/Toast";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -14,7 +15,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <ThemeProvider>
         <ProfilesProvider>
           <ThreadsProvider>
-            <App />
+            <ToastProvider>
+              <App />
+            </ToastProvider>
           </ThreadsProvider>
         </ProfilesProvider>
       </ThemeProvider>

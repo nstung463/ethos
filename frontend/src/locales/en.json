@@ -141,7 +141,9 @@
     "selectProjectFolder": "Select project folder",
     "changeFolder": "Change folder: {{dir}}",
     "switchLightMode": "Switch to light mode",
-    "switchDarkMode": "Switch to dark mode"
+    "switchDarkMode": "Switch to dark mode",
+    "linkCopied": "Link copied to clipboard",
+    "copyLink": "Copy conversation link"
   },
   "composer": {
     "placeholder": "Delegate a task or ask a question...",

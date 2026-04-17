@@ -141,7 +141,9 @@
     "selectProjectFolder": "Chọn thư mục dự án",
     "changeFolder": "Đổi thư mục: {{dir}}",
     "switchLightMode": "Chuyển sang nền sáng",
-    "switchDarkMode": "Chuyển sang nền tối"
+    "switchDarkMode": "Chuyển sang nền tối",
+    "linkCopied": "Đã sao chép liên kết",
+    "copyLink": "Sao chép liên kết cuộc trò chuyện"
   },
   "composer": {
     "placeholder": "Nhập yêu cầu hay ý tưởng của bạn...",

@@ -5,6 +5,7 @@ import PermissionPromptCard from "./PermissionPromptCard";
 import ThinkingPanel from "./ThinkingPanel";
 import TypingIndicator from "./TypingIndicator";
 import { parsePermissionPromptFromContent } from "../utils/threads";
+import { Clock } from "lucide-react";
 
 export default function MessageBubble({
   message,
@@ -41,10 +42,18 @@ export default function MessageBubble({
     return (
       <div className="flex justify-end px-4 py-1">
         <div
-          className="max-w-[85%] min-w-[120px] rounded-2xl rounded-br-sm border border-[var(--border-subtle)] bg-[var(--panel-elevated)] px-3 py-2.5 leading-7 text-[var(--text-primary)] sm:px-4 sm:py-3"
+          className={`max-w-[85%] min-w-[120px] rounded-2xl rounded-br-sm border border-[var(--border-subtle)] bg-[var(--panel-elevated)] px-3 py-2.5 leading-7 sm:px-4 sm:py-3 transition-opacity ${
+            message.optimistic ? "opacity-60" : "opacity-100 text-[var(--text-primary)]"
+          }`}
           style={{ fontSize: "var(--message-text-size)" }}
         >
           <MessageContent content={message.content} />
+          {message.optimistic ? (
+            <div className="mt-1 flex items-center gap-1 text-[10px] text-[var(--text-soft)]">
+              <Clock size={10} strokeWidth={2} className="animate-pulse" />
+              <span>Sending…</span>
+            </div>
+          ) : null}
         </div>
       </div>
     );

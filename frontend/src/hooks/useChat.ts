@@ -286,6 +286,7 @@ export function useChat({
         pendingAttachments.map((a) => `Attached file: ${a.filename}`).join("\n"),
       createdAt: now,
       status: "done",
+      optimistic: true,
     };
     const assistantMsg: Message = {
       id: createId("msg"),
@@ -377,7 +378,9 @@ export function useChat({
             messages: thread.messages.map((msg) =>
               msg.id === assistantMsg.id
                 ? { ...msg, content: `${msg.content}${chunk}`, permissionRequest: undefined }
-                : msg,
+                : msg.id === userMsg.id
+                  ? { ...msg, optimistic: false }
+                  : msg,
             ),
             updatedAt: new Date().toISOString(),
           }));
