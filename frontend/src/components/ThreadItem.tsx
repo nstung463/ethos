@@ -1,12 +1,15 @@
 import { Ellipsis, FolderSync, PenLine, Share2, SquareArrowOutUpRight, Star, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useTranslation, type TFunction } from "react-i18next";
+import { useTranslation } from "react-i18next";
 import { createPortal } from "react-dom";
 import type { ChatThread } from "../types";
 import { getLatestPreview } from "../utils/threads";
 import { useThreadActions } from "../context/ThreadActionsContext";
+import { useToast } from "./Toast";
 
-function formatTime(dateString: string, t: TFunction) {
+type Tf = (key: string, defaultValue: string, options?: Record<string, unknown>) => string;
+
+function formatTime(dateString: string, t: Tf) {
   const d = new Date(dateString);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -23,6 +26,7 @@ function formatTime(dateString: string, t: TFunction) {
 
 export default function ThreadItem({ thread }: { thread: ChatThread }) {
   const { t } = useTranslation();
+  const { toast } = useToast();
   const {
     activeThreadId,
     onSelectThread,
@@ -84,12 +88,16 @@ export default function ThreadItem({ thread }: { thread: ChatThread }) {
       if (!button) return;
       const rect = button.getBoundingClientRect();
       const estimatedMenuHeight = 260;
+      const menuWidth = 220; // matches min-w-[220px]
       const gap = 6;
       const shouldOpenUpward = rect.bottom + gap + estimatedMenuHeight > window.innerHeight - 8;
       setMenuPlacement(shouldOpenUpward ? "top" : "bottom");
+      // Horizontal: center on button but clamp so menu never overflows viewport
+      const rawLeft = rect.left + rect.width / 2;
+      const clampedLeft = Math.min(rawLeft, window.innerWidth - menuWidth / 2 - 8);
       setMenuPosition({
         top: shouldOpenUpward ? rect.top - gap : rect.bottom + gap,
-        left: rect.left + rect.width / 2,
+        left: clampedLeft,
       });
     }
 
@@ -104,9 +112,13 @@ export default function ThreadItem({ thread }: { thread: ChatThread }) {
 
   function handleShare() {
     const url = `${window.location.origin}/app/${thread.id}`;
-    void navigator.clipboard.writeText(url).catch(() => {
-      window.prompt(t("chat.copyLink", "Copy conversation link"), url);
-    });
+    void navigator.clipboard
+      .writeText(url)
+      .then(() => toast.success(t("chat.linkCopied", "Link copied to clipboard")))
+      .catch(() => {
+        // Fallback for browsers that block clipboard access
+        window.prompt(t("chat.copyLink", "Copy conversation link"), url);
+      });
     setMenuOpen(false);
   }
 

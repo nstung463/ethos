@@ -1,4 +1,4 @@
-import { useDeferredValue, useState, type ReactNode } from "react";
+import { useDeferredValue, useEffect, useState, type ReactNode } from "react";
 import {
   Bot,
   ChevronDown,
@@ -13,9 +13,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import ThreadItem from "./ThreadItem";
+import { ThreadListSkeleton } from "./Skeleton";
 import { useTranslation } from "react-i18next";
 import { useThreads } from "../context/ThreadsContext";
 import { useThreadActions } from "../context/ThreadActionsContext";
+import logo from "../assets/ethos2.png";
 
 function SidebarGlyph({
   children,
@@ -161,6 +163,23 @@ export default function Sidebar({
   const deferredSearch = useDeferredValue(search);
   const [projectsExpanded, setProjectsExpanded] = useState(false);
   const [tasksExpanded, setTasksExpanded] = useState(true);
+  /**
+   * Show the skeleton for up to 600 ms on first mount if threads aren't
+   * already loaded. This handles the brief window between React hydration
+   * and localStorage being read in ThreadsContext.
+   */
+  const [showSkeleton, setShowSkeleton] = useState(threads.length === 0);
+
+  useEffect(() => {
+    if (!showSkeleton) return;
+    const id = window.setTimeout(() => setShowSkeleton(false), 600);
+    return () => window.clearTimeout(id);
+  }, [showSkeleton]);
+
+  // If threads arrive before the timer fires, dismiss skeleton immediately
+  useEffect(() => {
+    if (threads.length > 0) setShowSkeleton(false);
+  }, [threads.length]);
 
   const needle = deferredSearch.trim().toLowerCase();
   const filtered = threads.filter((thread) => {
@@ -253,7 +272,7 @@ export default function Sidebar({
           >
             <div className="relative flex h-11 w-11 items-center justify-center transform transition-transform group-hover:-translate-y-0.5 drop-shadow-md">
               <img
-                src="/src/assets/ethos2.png"
+                src={logo}
                 alt="Ethos Logo"
                 className="h-full w-full object-contain transform scale-[1.25]"
               />
@@ -335,7 +354,9 @@ export default function Sidebar({
               />
               <CollapsibleSection expanded={tasksExpanded}>
                 <div className="space-y-1 pt-0.5">
-                  {filtered.length > 0 ? (
+                  {showSkeleton ? (
+                    <ThreadListSkeleton />
+                  ) : filtered.length > 0 ? (
                     filtered.map((thread) => (
                       <ThreadItem key={thread.id} thread={thread} />
                     ))

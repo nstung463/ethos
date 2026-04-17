@@ -88,6 +88,8 @@ export type Message = {
   error?: string;
   thinkingDuration?: number; // seconds
   permissionRequest?: PermissionRequest;
+  /** True while the message is optimistically rendered before the server confirms it */
+  optimistic?: boolean;
 };
 
 export type ChatThread = {
