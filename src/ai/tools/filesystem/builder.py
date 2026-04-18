@@ -4,6 +4,7 @@ from pathlib import Path
 
 from langchain_core.tools import StructuredTool
 
+from src.ai.filesystem import FilesystemService
 from src.ai.permissions.types import PermissionContext
 from src.ai.tools.filesystem.edit_file import EditFileInput, build_edit_file_tool
 from src.ai.tools.filesystem.glob import GlobInput, build_glob_tool
@@ -11,7 +12,7 @@ from src.ai.tools.filesystem.grep import GrepInput, build_grep_tool
 from src.ai.tools.filesystem.ls import LsInput, build_ls_tool
 from src.ai.tools.filesystem.read_file import ReadFileInput, build_read_file_tool
 from src.ai.tools.filesystem.write_file import WriteFileInput, build_write_file_tool
-from src.backends.protocol import SandboxProtocol as FilesystemBackendProtocol
+from src.backends.protocol import FilesystemBackendProtocol
 
 
 class FilesystemToolBuilder:
@@ -26,6 +27,7 @@ class FilesystemToolBuilder:
         self.root.mkdir(parents=True, exist_ok=True)
         self.backend = backend
         self.permission_context = permission_context
+        self.filesystem = FilesystemService(self.root, backend=self.backend)
 
     def build_tools(self) -> list[StructuredTool]:
         return [
@@ -52,13 +54,28 @@ class FilesystemToolBuilder:
         return build_ls_tool(self.root, backend=self.backend, permission_context=self.permission_context)
 
     def build_read_file_tool(self) -> StructuredTool:
-        return build_read_file_tool(self.root, backend=self.backend, permission_context=self.permission_context)
+        return build_read_file_tool(
+            self.root,
+            backend=self.backend,
+            permission_context=self.permission_context,
+            filesystem=self.filesystem,
+        )
 
     def build_write_file_tool(self) -> StructuredTool:
-        return build_write_file_tool(self.root, backend=self.backend, permission_context=self.permission_context)
+        return build_write_file_tool(
+            self.root,
+            backend=self.backend,
+            permission_context=self.permission_context,
+            filesystem=self.filesystem,
+        )
 
     def build_edit_file_tool(self) -> StructuredTool:
-        return build_edit_file_tool(self.root, backend=self.backend, permission_context=self.permission_context)
+        return build_edit_file_tool(
+            self.root,
+            backend=self.backend,
+            permission_context=self.permission_context,
+            filesystem=self.filesystem,
+        )
 
     def build_glob_tool(self) -> StructuredTool:
         return build_glob_tool(self.root, backend=self.backend, permission_context=self.permission_context)

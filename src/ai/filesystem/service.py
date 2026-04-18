@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import re
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 
+from src.ai.filesystem.read import read_path, render_bytes_read
 from src.ai.tools.filesystem._sandbox import resolve
 from src.backends.protocol import (
     EditResult,
@@ -35,6 +37,13 @@ class GrepSearchResult:
     error: str | None = None
 
 
+@dataclass(frozen=True)
+class FileReadState:
+    path: str
+    is_full_read: bool
+    content_hash: str | None = None
+
+
 class FilesystemService:
     def __init__(
         self,
@@ -45,6 +54,7 @@ class FilesystemService:
         self.root = Path(root_dir).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self._read_states: dict[str, FileReadState] = {}
 
     def resolve_permission_target(self, path: str, *, base: str | None = None) -> tuple[str, Path]:
         target = self._resolve_workspace_path(path, base=base)
@@ -77,11 +87,18 @@ class FilesystemService:
         return result
 
     def ls(self, path: str = ".") -> str:
-        info = self._stat_path(path)
+        path = self._sanitize_input_path(path)
+        try:
+            info = self._stat_path(path)
+        except PermissionError as exc:
+            return str(exc)
         if not info.exists:
             return f"Error: '{path}' does not exist."
         if info.is_file:
-            return self.normalize_path(path)
+            try:
+                return self.normalize_path(path)
+            except PermissionError as exc:
+                return str(exc)
 
         result = self._list_dir(path)
         if result.error:
@@ -95,55 +112,120 @@ class FilesystemService:
         ]
         return "\n".join(lines)
 
-    def read_file(self, path: str, offset: int = 0, limit: int | None = None) -> str:
-        info = self._stat_path(path)
-        if not info.exists:
-            return f"Error: '{path}' does not exist."
-        if info.is_dir:
-            return f"Error: '{path}' is a directory. Use ls to list its contents."
-
-        response = self._read_bytes(path, offset=offset, limit=limit)
-        if response.error or response.content is None:
-            return f"Error: '{path}' does not exist."
-
+    def read_file(
+        self,
+        path: str,
+        offset: int = 1,
+        limit: int | None = None,
+        pages: str | None = None,
+    ) -> str:
+        path = self._sanitize_input_path(path)
         try:
-            all_lines = response.content.decode("utf-8").splitlines()
-        except UnicodeDecodeError:
-            return f"Error: '{path}' is not a text file (binary content)."
+            if self.backend is None:
+                target = self._resolve_workspace_path(path)
+                rendered = read_path(target, display_path=path, offset=offset, limit=limit, pages=pages)
+                self._remember_successful_read(path, rendered, limit=limit, pages=pages)
+                return rendered
 
-        total = len(all_lines)
-        start = max(0, offset)
-        end = total if limit is None else min(total, start + (limit or DEFAULT_READ_LIMIT))
-        selected = all_lines[start:end]
+            info = self._stat_path(path)
+            if not info.exists:
+                return f"Error: '{path}' does not exist."
+            if info.is_dir:
+                return f"Error: '{path}' is a directory. Use ls to list its contents."
 
-        if not selected and total > 0:
-            return f"[File has {total} lines, but offset={offset} is past the end.]"
-        if not selected:
-            return "(empty file)"
-
-        numbered = [f"{i + start + 1:>6}\t{line}" for i, line in enumerate(selected)]
-        result = "\n".join(numbered)
-        if end < total:
-            result += f"\n\n[Showing lines {start + 1}-{end} of {total}. Use offset={end} to read more.]"
-        return result
+            response = self._read_bytes(path, offset=offset, limit=limit)
+            if response.error or response.content is None:
+                return f"Error reading '{path}': {response.error or 'no content returned'}."
+            rendered = render_bytes_read(
+                response.content,
+                display_path=path,
+                suffix=Path(path).suffix.lower(),
+                offset=offset,
+                limit=limit,
+                pages=pages,
+            )
+            self._remember_successful_read(path, rendered, limit=limit, pages=pages, content=response.content)
+            return rendered
+        except PermissionError as exc:
+            return str(exc)
 
     def write_file(self, path: str, content: str) -> str:
+        path = self._sanitize_input_path(path)
+        try:
+            validation_error = self._validate_write_preconditions(path)
+        except PermissionError as exc:
+            return str(exc)
+        if validation_error:
+            return validation_error
+
         result = self._write_bytes(path, content.encode("utf-8"))
         if result.error:
             return f"Error: {result.error}"
+        self._read_states[self.normalize_path(path)] = FileReadState(
+            path=self.normalize_path(path),
+            is_full_read=True,
+            content_hash=self._hash_bytes(content.encode("utf-8")),
+        )
         lines = content.count("\n") + 1
         return f"Written {len(content)} characters ({lines} lines) to '{path}'."
 
     def edit_file(self, path: str, old_string: str, new_string: str, replace_all: bool = False) -> str:
+        path = self._sanitize_input_path(path)
+        try:
+            return self._edit_file_inner(path, old_string, new_string, replace_all)
+        except PermissionError as exc:
+            return str(exc)
+
+    def _edit_file_inner(self, path: str, old_string: str, new_string: str, replace_all: bool) -> str:
+        if old_string == new_string:
+            return "No changes to make: old_string and new_string are exactly the same."
+
         info = self._stat_path(path)
-        if not info.exists:
-            return f"Error: '{path}' does not exist. Read the file before editing."
+
         if info.is_dir:
             return f"Error: '{path}' is a directory. Use ls to list its contents."
 
+        # Create-file path: empty old_string means "write new_string to file".
+        # This check must come before the .ipynb guard so that creating a new
+        # .ipynb file with old_string="" is allowed (matches Claude Code behaviour).
+        if old_string == "":
+            if info.exists:
+                response = self._read_bytes(path)
+                if response.error:
+                    return f"Error reading '{path}': {response.error}."
+                existing = response.content or b""
+                if existing.strip():
+                    return "Cannot create new file - file already exists."
+            write_result = self._write_bytes(path, new_string.encode("utf-8"))
+            if write_result.error:
+                return f"Error: {write_result.error}"
+            normalized = self.normalize_path(path)
+            self._read_states[normalized] = FileReadState(
+                path=normalized,
+                is_full_read=True,
+                content_hash=self._hash_bytes(new_string.encode("utf-8")),
+            )
+            return f"The file '{path}' has been updated successfully."
+
+        if not info.exists:
+            return f"Error: '{path}' does not exist. Read the file before editing."
+
+        if Path(path).suffix.lower() == ".ipynb":
+            return "File is a Jupyter Notebook. Use the notebook_edit tool to edit this file."
+
+        # Must have a full read on record before editing
+        normalized = self.normalize_path(path)
+        read_state = self._read_states.get(normalized)
+        if read_state is None or not read_state.is_full_read:
+            return "File has not been read yet. Read it first before editing it."
+
         response = self._read_bytes(path)
         if response.error or response.content is None:
-            return f"Error: '{path}' does not exist. Read the file before editing."
+            return f"Error: '{path}' does not exist."
+
+        # Stale-read check
+        if read_state.content_hash != self._hash_bytes(response.content):
+            return "File has been modified since read. Read it again before attempting to edit it."
 
         try:
             content = response.content.decode("utf-8")
@@ -152,22 +234,30 @@ class FilesystemService:
 
         count = content.count(old_string)
         if count == 0:
-            return (
-                f"Error: old_string not found in '{path}'. "
-                "Make sure the string matches exactly (including indentation and whitespace)."
-            )
+            return f"String to replace not found in file.\nString: {old_string}"
         if count > 1 and not replace_all:
             return (
-                f"Error: old_string appears {count} times in '{path}'. "
-                "Provide more surrounding context to make it unique, or set replace_all=True."
+                f"Found {count} matches of the string to replace, but replace_all is false. "
+                "To replace all occurrences, set replace_all to true. "
+                "To replace only one occurrence, provide more context to uniquely identify the instance.\n"
+                f"String: {old_string}"
             )
 
         updated = content.replace(old_string, new_string) if replace_all else content.replace(old_string, new_string, 1)
         write_result = self._write_bytes(path, updated.encode("utf-8"))
         if write_result.error:
             return f"Error: {write_result.error}"
-        replaced = count if replace_all else 1
-        return f"Edited '{path}': replaced {replaced} occurrence(s)."
+
+        updated_bytes = updated.encode("utf-8")
+        self._read_states[normalized] = FileReadState(
+            path=normalized,
+            is_full_read=True,
+            content_hash=self._hash_bytes(updated_bytes),
+        )
+
+        if replace_all:
+            return f"The file '{path}' has been updated. All occurrences were successfully replaced."
+        return f"The file '{path}' has been updated successfully."
 
     def glob_search(self, pattern: str, path: str = ".") -> GlobSearchResult:
         info = self._stat_path(path)
@@ -225,6 +315,7 @@ class FilesystemService:
         return GrepSearchResult(matches=matches)
 
     def _resolve_workspace_path(self, path: str, *, base: str | None = None) -> Path:
+        path = self._sanitize_input_path(path)
         if not base or path.startswith("/"):
             return resolve(self.root, path)
 
@@ -241,6 +332,10 @@ class FilesystemService:
     def _to_display_path(self, target: Path) -> str:
         relative = target.relative_to(self.root)
         return "." if relative == Path(".") else relative.as_posix()
+
+    def _sanitize_input_path(self, path: str) -> str:
+        stripped = path.strip()
+        return stripped or "."
 
     def _relative_to_base(self, display_path: str, base: str) -> str:
         if base == ".":
@@ -368,3 +463,72 @@ class FilesystemService:
             write_result: WriteResult = write_method(path, content.decode("utf-8"))
             return FileUploadResponse(path=path, error=write_result.error)
         return FileUploadResponse(path=path, error="write_not_supported")
+
+    def _remember_successful_read(
+        self,
+        path: str,
+        rendered: str,
+        *,
+        limit: int | None,
+        pages: str | None,
+        content: bytes | None = None,
+    ) -> None:
+        if (
+            rendered.startswith("Error:")
+            or rendered.startswith("Cannot read ")
+            or rendered.startswith("File content (")
+            or rendered.startswith("This PDF has ")
+            or rendered.startswith("Invalid pages parameter:")
+            or rendered.startswith("This tool cannot read binary files.")
+            or rendered.startswith("File is not a valid PDF")
+            or rendered.startswith("PDF is password-protected.")
+            or rendered.startswith("PDF file is corrupted or invalid.")
+            or rendered.startswith("pdftoppm failed:")
+            or rendered.startswith("pdftoppm is not installed.")
+        ):
+            return
+
+        normalized_path = self.normalize_path(path)
+        is_full_read = limit is None and pages is None and not self._is_partial_read_output(rendered)
+        if not is_full_read:
+            self._read_states[normalized_path] = FileReadState(path=normalized_path, is_full_read=False)
+            return
+
+        payload = content if content is not None else self._read_current_bytes(path)
+        if payload is None:
+            return
+        self._read_states[normalized_path] = FileReadState(
+            path=normalized_path,
+            is_full_read=True,
+            content_hash=self._hash_bytes(payload),
+        )
+
+    def _validate_write_preconditions(self, path: str) -> str | None:
+        info = self._stat_path(path)
+        if not info.exists:
+            return None
+        if info.is_dir:
+            return f"Error: '{path}' is a directory. Use ls to list its contents."
+
+        read_state = self._read_states.get(self.normalize_path(path))
+        if read_state is None or not read_state.is_full_read:
+            return "File has not been read yet. Read it first before writing to it."
+
+        current_content = self._read_current_bytes(path)
+        if current_content is None:
+            return f"Error: '{path}' does not exist."
+        if read_state.content_hash != self._hash_bytes(current_content):
+            return "File has been modified since read. Read it again before attempting to write it."
+        return None
+
+    def _read_current_bytes(self, path: str) -> bytes | None:
+        response = self._read_bytes(path)
+        if response.error or response.content is None:
+            return None
+        return response.content
+
+    def _hash_bytes(self, content: bytes) -> str:
+        return hashlib.sha256(content).hexdigest()
+
+    def _is_partial_read_output(self, rendered: str) -> bool:
+        return rendered.startswith("[Showing lines ") or "\n\n[Showing lines " in rendered
