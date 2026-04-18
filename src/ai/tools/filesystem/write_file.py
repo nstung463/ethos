@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from src.ai.filesystem import FilesystemService
 from src.ai.permissions.types import PermissionContext, PermissionSubject
 from src.ai.tools.filesystem._shared import permission_error
+from src.ai.tools.filesystem.write_prompt import render_write_tool_description
 from src.backends.protocol import FilesystemBackendProtocol
 
 
@@ -22,23 +23,24 @@ def build_write_file_tool(
     root: Path,
     backend: FilesystemBackendProtocol | None = None,
     permission_context: PermissionContext | None = None,
+    filesystem: FilesystemService | None = None,
 ) -> StructuredTool:
-    filesystem = FilesystemService(root, backend=backend)
+    filesystem = filesystem or FilesystemService(root, backend=backend)
 
     def _tool(path: str, content: str) -> str:
-        blocked = permission_error(filesystem, permission_context, PermissionSubject.EDIT, path)
+        normalized_path = path.strip() or "."
+        try:
+            blocked = permission_error(filesystem, permission_context, PermissionSubject.EDIT, normalized_path)
+        except PermissionError as exc:
+            return str(exc)
         if blocked:
             return blocked
-        return filesystem.write_file(path, content)
+        return filesystem.write_file(normalized_path, content)
 
     return StructuredTool.from_function(
         name="write_file",
         func=_tool,
-        description=(
-            "Write content to a file, creating it and parent directories if needed. "
-            "Prefer edit_file for modifying existing files - use write_file for new files "
-            "or complete rewrites."
-        ),
+        description=render_write_tool_description(),
         args_schema=WriteFileInput,
     )
 

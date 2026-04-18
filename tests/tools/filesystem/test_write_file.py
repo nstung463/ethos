@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 from pathlib import Path
 from unittest.mock import patch
+
+from src.ai.tools.filesystem import build_filesystem_tools
 from src.ai.tools.filesystem.write_file import build_write_file_tool
 
 
@@ -22,9 +24,62 @@ def test_write_creates_parent_dirs(workspace: Path) -> None:
 
 def test_write_overwrites_existing(workspace: Path) -> None:
     (workspace / "f.txt").write_text("old")
-    tool = build_write_file_tool(workspace)
-    tool.invoke({"path": "f.txt", "content": "new"})
+    tools = build_filesystem_tools(root_dir=str(workspace))
+    read_tool = next(item for item in tools if item.name == "read_file")
+    write_tool = next(item for item in tools if item.name == "write_file")
+
+    read_tool.invoke({"path": "f.txt"})
+    write_tool.invoke({"path": "f.txt", "content": "new"})
+
     assert (workspace / "f.txt").read_text() == "new"
+
+
+def test_write_existing_file_requires_full_read_first(workspace: Path) -> None:
+    (workspace / "f.txt").write_text("old")
+    tool = build_write_file_tool(workspace)
+
+    result = tool.invoke({"path": "f.txt", "content": "new"})
+
+    assert "read it first before writing to it" in result.lower()
+
+
+def test_write_existing_file_rejects_partial_read(workspace: Path) -> None:
+    (workspace / "f.txt").write_text("old\nline2\nline3")
+    tools = build_filesystem_tools(root_dir=str(workspace))
+    read_tool = next(item for item in tools if item.name == "read_file")
+    write_tool = next(item for item in tools if item.name == "write_file")
+
+    read_tool.invoke({"path": "f.txt", "offset": 1, "limit": 1})
+    result = write_tool.invoke({"path": "f.txt", "content": "new"})
+
+    assert "read it first before writing to it" in result.lower()
+
+
+def test_write_existing_file_allows_full_read_first(workspace: Path) -> None:
+    (workspace / "f.txt").write_text("old")
+    tools = build_filesystem_tools(root_dir=str(workspace))
+    read_tool = next(item for item in tools if item.name == "read_file")
+    write_tool = next(item for item in tools if item.name == "write_file")
+
+    read_tool.invoke({"path": "f.txt"})
+    result = write_tool.invoke({"path": "f.txt", "content": "new"})
+
+    assert "written" in result.lower()
+    assert (workspace / "f.txt").read_text() == "new"
+
+
+def test_write_existing_file_rejects_stale_read(workspace: Path) -> None:
+    (workspace / "f.txt").write_text("old")
+    tools = build_filesystem_tools(root_dir=str(workspace))
+    read_tool = next(item for item in tools if item.name == "read_file")
+    write_tool = next(item for item in tools if item.name == "write_file")
+
+    read_tool.invoke({"path": "f.txt"})
+    (workspace / "f.txt").write_text("changed by user")
+    result = write_tool.invoke({"path": "f.txt", "content": "new"})
+
+    assert "modified since read" in result.lower()
+    assert "read it again" in result.lower()
 
 
 def test_write_reports_line_count(workspace: Path) -> None:
@@ -35,8 +90,8 @@ def test_write_reports_line_count(workspace: Path) -> None:
 
 def test_write_rejects_traversal(workspace: Path) -> None:
     tool = build_write_file_tool(workspace)
-    with pytest.raises(PermissionError):
-        tool.invoke({"path": "../escape.txt", "content": "bad"})
+    result = tool.invoke({"path": "../escape.txt", "content": "bad"})
+    assert "access denied" in result.lower()
 
 
 

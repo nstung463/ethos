@@ -6,8 +6,10 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from src.ai.filesystem import FilesystemService
-from src.ai.permissions.types import PermissionContext
-from src.backends.protocol import SandboxProtocol as FilesystemBackendProtocol
+from src.ai.permissions.types import PermissionContext, PermissionSubject
+from src.ai.tools.filesystem._shared import permission_error
+from src.ai.tools.filesystem.ls_prompt import render_ls_tool_description
+from src.backends.protocol import FilesystemBackendProtocol
 
 
 class LsInput(BaseModel):
@@ -24,14 +26,19 @@ def build_ls_tool(
 ) -> StructuredTool:
     filesystem = FilesystemService(root, backend=backend)
 
+    def _tool(path: str = ".") -> str:
+        try:
+            blocked = permission_error(filesystem, permission_context, PermissionSubject.READ, path.strip() or ".")
+        except PermissionError as exc:
+            return str(exc)
+        if blocked:
+            return blocked
+        return filesystem.ls(path)
+
     return StructuredTool.from_function(
         name="ls",
-        func=filesystem.ls,
-        description=(
-            "List files and directories in the workspace. "
-            "Use this before reading or editing files to explore the structure. "
-            "Paths are relative to the workspace root."
-        ),
+        func=_tool,
+        description=render_ls_tool_description(),
         args_schema=LsInput,
     )
 
