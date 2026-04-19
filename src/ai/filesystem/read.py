@@ -7,6 +7,10 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from src.ai.filesystem.backend import FilesystemBackendAdapter
+from src.ai.filesystem.pathing import WorkspacePathResolver
+from src.ai.filesystem.state import ReadStateStore
+
 DEFAULT_READ_LIMIT = 200
 FAST_PATH_MAX_SIZE = 10 * 1024 * 1024
 MAX_READ_SIZE_BYTES = 256 * 1024
@@ -56,6 +60,43 @@ BLOCKED_DEVICE_PATHS = {
     "/dev/fd/1",
     "/dev/fd/2",
 }
+
+
+def read_file(
+    resolver: WorkspacePathResolver,
+    adapter: FilesystemBackendAdapter,
+    state: ReadStateStore,
+    path: str,
+    offset: int = 1,
+    limit: int | None = None,
+    pages: str | None = None,
+) -> str:
+    path = resolver.sanitize_input_path(path)
+    if adapter.backend is None:
+        target = resolver.resolve_workspace_path(path)
+        rendered = read_path(target, display_path=path, offset=offset, limit=limit, pages=pages)
+        state.remember_successful_read(path, rendered, limit=limit, pages=pages, adapter=adapter)
+        return rendered
+
+    info = adapter.stat_path(path)
+    if not info.exists:
+        return f"Error: '{path}' does not exist."
+    if info.is_dir:
+        return f"Error: '{path}' is a directory. Use ls to list its contents."
+
+    response = adapter.read_bytes(path, offset=offset, limit=limit)
+    if response.error or response.content is None:
+        return f"Error reading '{path}': {response.error or 'no content returned'}."
+    rendered = render_bytes_read(
+        response.content,
+        display_path=path,
+        suffix=Path(path).suffix.lower(),
+        offset=offset,
+        limit=limit,
+        pages=pages,
+    )
+    state.remember_successful_read(path, rendered, limit=limit, pages=pages, adapter=adapter, content=response.content)
+    return rendered
 
 
 def read_path(
