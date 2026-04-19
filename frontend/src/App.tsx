@@ -299,6 +299,7 @@ function ChatWorkspace() {
                     permissions.handlePromoteThreadPermissions(activeThread?.remoteId ?? "")
                   }
                   onOpenSecuritySettings={() => openSettings("security")}
+                  onAnswerAskUser={chat.handleAnswerAskUser}
                 />
               </ErrorBoundary>
 

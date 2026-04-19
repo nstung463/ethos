@@ -148,7 +148,7 @@ def test_chat_completion_uses_effective_thread_permission_context(
         },
     )()
 
-    def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None):
+    def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None, **kwargs):
         captured["model"] = model
         captured["backend"] = backend
         captured["permission_context"] = permission_context
@@ -246,7 +246,7 @@ def test_chat_completion_allows_one_shot_permission_override_from_metadata(
         },
     )()
 
-    def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None):
+    def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None, **kwargs):
         captured["permission_context"] = permission_context
         return _FakeAgent()
 

@@ -1,5 +1,5 @@
 import { API_BASE_URL } from "../constants";
-import type { Attachment, Message, PermissionRequest, ProviderProfile, StreamChunk } from "../types";
+import type { AskUserRequest, Attachment, Message, PermissionRequest, ProviderProfile, StreamChunk } from "../types";
 import { authFetch } from "./auth";
 import { toApiMessages } from "./threads";
 
@@ -50,6 +50,7 @@ export async function streamChat({
   onContent,
   onReasoning,
   onPermissionRequest,
+  onAskUserRequest,
   extraMetadata,
 }: {
   model: string;
@@ -62,6 +63,7 @@ export async function streamChat({
   onContent: (chunk: string) => void;
   onReasoning: (chunk: string) => void;
   onPermissionRequest: (request: PermissionRequest) => void;
+  onAskUserRequest?: (request: AskUserRequest) => void;
   extraMetadata?: Record<string, unknown>;
 }) {
   const response = await authFetch(`${API_BASE_URL}/v1/chat/completions`, {
@@ -105,7 +107,13 @@ export async function streamChat({
       const delta = parsed.choices?.[0]?.delta;
       if (delta?.content) onContent(delta.content);
       if (delta?.reasoning_content) onReasoning(delta.reasoning_content);
-      if (delta?.permission_request) onPermissionRequest(delta.permission_request);
+      if (delta?.permission_request) {
+        if (delta.permission_request.behavior === "ask_user") {
+          onAskUserRequest?.(delta.permission_request as AskUserRequest);
+        } else {
+          onPermissionRequest(delta.permission_request as PermissionRequest);
+        }
+      }
     }
   }
 }

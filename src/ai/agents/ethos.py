@@ -12,6 +12,7 @@ from src.ai.permissions import PermissionContext
 from src.ai.agents.subagents import DEFAULT_SUBAGENTS, build_task_tool
 from src.ai.middleware import MemoryMiddleware, SkillsMiddleware
 from src.ai.prompts.catalog import BASE_SYSTEM_PROMPT
+from src.ai.tools.filesystem.media_support import MediaBlockSupport
 from src.backends.protocol import SandboxProtocol as FilesystemBackendProtocol
 from src.config import get_mcp_servers, get_model, get_workspace
 from src.logger import get_logger
@@ -37,6 +38,7 @@ def create_ethos_agent(
     model: BaseChatModel | None = None,
     permission_context: PermissionContext | None = None,
     checkpointer: BaseCheckpointSaver | None = None,
+    media_block_support: MediaBlockSupport | None = None,
 ) -> object:
     """Create and return a compiled Ethos agent."""
     raw_backend_root = getattr(backend, "root", None) if backend is not None else None
@@ -56,6 +58,7 @@ def create_ethos_agent(
         root_dir=root_dir,
         backend=backend,
         permission_context=permission_context,
+        media_block_support=media_block_support,
     )
     extra_tools = []
     if backend is not None:

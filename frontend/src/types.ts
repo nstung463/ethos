@@ -61,6 +61,25 @@ export type PermissionRequest = {
   command?: string;
 };
 
+export type AskUserOption = {
+  label: string;
+  description: string;
+  preview?: string;
+};
+
+export type AskUserQuestion = {
+  question: string;
+  header: string;
+  options: AskUserOption[];
+  multi_select?: boolean;
+};
+
+export type AskUserRequest = {
+  behavior: "ask_user";
+  questions: AskUserQuestion[];
+  metadata?: Record<string, string>;
+};
+
 export type PermissionProfile = {
   mode: PermissionMode | null;
   working_directories: string[];
@@ -88,6 +107,7 @@ export type Message = {
   error?: string;
   thinkingDuration?: number; // seconds
   permissionRequest?: PermissionRequest;
+  askUserRequest?: AskUserRequest;
   /** True while the message is optimistically rendered before the server confirms it */
   optimistic?: boolean;
 };
@@ -113,7 +133,7 @@ export type StreamChunk = {
     delta?: {
       content?: string;
       reasoning_content?: string;
-      permission_request?: PermissionRequest;
+      permission_request?: PermissionRequest | AskUserRequest;
     };
     finish_reason?: string | null;
   }>;

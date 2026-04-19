@@ -1,6 +1,7 @@
 import { type FormEvent, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type {
+  AskUserRequest,
   ChatThread,
   ComposerMode,
   Message,
@@ -120,6 +121,7 @@ export function useChat({
               content: "",
               error: undefined,
               permissionRequest: undefined,
+              askUserRequest: undefined,
               status: "streaming" as const,
             }
           : msg,
@@ -130,7 +132,7 @@ export function useChat({
 
   async function retryPendingPermissionRequest(
     assistantMessageId: string,
-    options: { persistMode?: PermissionMode },
+    options: { persistMode?: PermissionMode; resumeOverride?: Record<string, unknown> },
   ) {
     const pending = pendingRetriesRef.current[assistantMessageId];
     if (!pending) throw new Error("The blocked action is no longer available to retry.");
@@ -171,7 +173,7 @@ export function useChat({
             mode: pending.backendMode,
             root_dir: pending.backendMode === "local" ? pending.localRootDir : undefined,
           },
-          resume: { approved: true },
+          resume: options.resumeOverride ?? { approved: true },
         },
         onContent: (chunk) => {
           sawContent = true;
@@ -204,6 +206,18 @@ export function useChat({
             messages: thread.messages.map((msg) =>
               msg.id === assistantMessageId
                 ? { ...msg, permissionRequest: request, status: "done" as const }
+                : msg,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
+        onAskUserRequest: (request: AskUserRequest) => {
+          sawPermissionRequest = true;
+          updateThread(pending.localThreadId, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((msg) =>
+              msg.id === assistantMessageId
+                ? { ...msg, askUserRequest: request, status: "done" as const }
                 : msg,
             ),
             updatedAt: new Date().toISOString(),
@@ -407,6 +421,18 @@ export function useChat({
             updatedAt: new Date().toISOString(),
           }));
         },
+        onAskUserRequest: (request: AskUserRequest) => {
+          sawPermissionRequest = true;
+          updateThread(nextThread.id, (thread) => ({
+            ...thread,
+            messages: thread.messages.map((msg) =>
+              msg.id === assistantMsg.id
+                ? { ...msg, askUserRequest: request, status: "done" as const }
+                : msg,
+            ),
+            updatedAt: new Date().toISOString(),
+          }));
+        },
       });
 
       const thinkingDuration = reasoningStartRef.current
@@ -490,6 +516,16 @@ export function useChat({
     await retryPendingPermissionRequest(messageId, { persistMode: "bypass_permissions" });
   }
 
+  async function handleAnswerAskUser(
+    messageId: string,
+    answers: Record<string, string>,
+    notes: Record<string, string>,
+  ) {
+    await retryPendingPermissionRequest(messageId, {
+      resumeOverride: { answers, notes },
+    });
+  }
+
   return {
     draft,
     setDraft,
@@ -499,5 +535,6 @@ export function useChat({
     handleApproveOnce,
     handleApproveForChat,
     handleBypassForChat,
+    handleAnswerAskUser,
   };
 }

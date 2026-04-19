@@ -1,3 +1,5 @@
+"""Per-thread directory storage — one meta.json per thread."""
+
 from __future__ import annotations
 
 import json
@@ -9,28 +11,73 @@ from typing import Any
 
 
 class ThreadStore:
-    """Small JSON-backed store for user-owned chat threads."""
+    """
+    File layout:
+        root/
+          <user_id>/
+            threads/
+              <thread_id>/
+                meta.json    # thread metadata + permission_overlay
+    """
 
-    def __init__(self, root: Path) -> None:
+    def __init__(self, root: Path, legacy_root: Path | None = None) -> None:
         self.root = root
-        self.index_path = self.root / "threads.json"
-        self._lock = Lock()
         self.root.mkdir(parents=True, exist_ok=True)
-        if not self.index_path.exists():
-            self.index_path.write_text("{}", encoding="utf-8")
 
-    def _read_index(self) -> dict[str, dict[str, Any]]:
+        self._user_locks: dict[str, Lock] = {}
+        self._users_lock = Lock()
+
+        if legacy_root is not None:
+            self._migrate_from_legacy(legacy_root)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+
+    def _user_lock(self, user_id: str) -> Lock:
+        with self._users_lock:
+            if user_id not in self._user_locks:
+                self._user_locks[user_id] = Lock()
+            return self._user_locks[user_id]
+
+    def _thread_dir(self, user_id: str, thread_id: str) -> Path:
+        return self.root / user_id / "threads" / thread_id
+
+    def _meta_path(self, user_id: str, thread_id: str) -> Path:
+        return self._thread_dir(user_id, thread_id) / "meta.json"
+
+    def _read_meta(self, user_id: str, thread_id: str) -> dict[str, Any] | None:
+        path = self._meta_path(user_id, thread_id)
         try:
-            return json.loads(self.index_path.read_text(encoding="utf-8"))
+            return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
-            return {}
+            return None
 
-    def _write_index(self, index: dict[str, dict[str, Any]]) -> None:
-        self.index_path.write_text(json.dumps(index, indent=2), encoding="utf-8")
+    def _write_meta(self, user_id: str, thread_id: str, data: dict[str, Any]) -> None:
+        path = self._meta_path(user_id, thread_id)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+
+    def _clean_overlay(self, overlay: Any) -> dict[str, Any]:
+        if not isinstance(overlay, dict):
+            return {"mode": None, "working_directories": [], "rules": []}
+        return {
+            "mode": overlay.get("mode") if isinstance(overlay.get("mode"), str) else None,
+            "working_directories": [
+                item for item in (overlay.get("working_directories") or []) if isinstance(item, str)
+            ],
+            "rules": [
+                item for item in (overlay.get("rules") or []) if isinstance(item, dict)
+            ],
+        }
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def create_thread(self, *, user_id: str) -> dict[str, Any]:
         now = int(time.time())
-        record = {
+        record: dict[str, Any] = {
             "id": f"thread_{uuid.uuid4().hex}",
             "user_id": user_id,
             "created_at": now,
@@ -41,69 +88,86 @@ class ThreadStore:
                 "rules": [],
             },
         }
-        with self._lock:
-            index = self._read_index()
-            index[record["id"]] = record
-            self._write_index(index)
+        with self._user_lock(user_id):
+            self._write_meta(user_id, record["id"], record)
         return record
 
     def list_threads(self, *, user_id: str) -> list[dict[str, Any]]:
-        with self._lock:
-            index = self._read_index()
-        items = [item for item in index.values() if item.get("user_id") == user_id]
+        threads_root = self.root / user_id / "threads"
+        if not threads_root.exists():
+            return []
+        items: list[dict[str, Any]] = []
+        for meta_file in threads_root.glob("*/meta.json"):
+            try:
+                data = json.loads(meta_file.read_text(encoding="utf-8"))
+                if data.get("user_id") == user_id:
+                    items.append(data)
+            except Exception:
+                continue
         items.sort(key=lambda item: item.get("updated_at", 0), reverse=True)
         return items
 
-    def get_thread(self, thread_id: str) -> dict[str, Any] | None:
-        with self._lock:
-            return self._read_index().get(thread_id)
+    def get_thread(self, thread_id: str, user_id: str) -> dict[str, Any] | None:
+        return self._read_meta(user_id, thread_id)
 
     def get_owned_thread(self, *, thread_id: str, user_id: str) -> dict[str, Any] | None:
-        thread = self.get_thread(thread_id)
-        if not thread or thread.get("user_id") != user_id:
+        record = self._read_meta(user_id, thread_id)
+        if not record or record.get("user_id") != user_id:
             return None
-        return thread
+        return record
 
     def touch_thread(self, *, thread_id: str, user_id: str) -> dict[str, Any] | None:
-        with self._lock:
-            index = self._read_index()
-            record = index.get(thread_id)
+        with self._user_lock(user_id):
+            record = self._read_meta(user_id, thread_id)
             if not record or record.get("user_id") != user_id:
                 return None
             record["updated_at"] = int(time.time())
-            index[thread_id] = record
-            self._write_index(index)
-            return record
+            self._write_meta(user_id, thread_id, record)
+        return record
 
-    def get_permission_overlay(self, *, thread_id: str, user_id: str) -> dict[str, Any] | None:
-        with self._lock:
-            index = self._read_index()
-            record = index.get(thread_id)
-            if not record or record.get("user_id") != user_id:
-                return None
-            overlay = record.get("permission_overlay")
-            if not isinstance(overlay, dict):
-                return {"mode": None, "working_directories": [], "rules": []}
-            return {
-                "mode": overlay.get("mode") if isinstance(overlay.get("mode"), str) else None,
-                "working_directories": [item for item in (overlay.get("working_directories") or []) if isinstance(item, str)],
-                "rules": [item for item in (overlay.get("rules") or []) if isinstance(item, dict)],
-            }
+    def get_permission_overlay(
+        self, *, thread_id: str, user_id: str
+    ) -> dict[str, Any] | None:
+        record = self._read_meta(user_id, thread_id)
+        if not record or record.get("user_id") != user_id:
+            return None
+        return self._clean_overlay(record.get("permission_overlay"))
 
     def update_permission_overlay(
-        self,
-        *,
-        thread_id: str,
-        user_id: str,
-        overlay: dict[str, Any],
+        self, *, thread_id: str, user_id: str, overlay: dict[str, Any]
     ) -> dict[str, Any] | None:
-        with self._lock:
-            index = self._read_index()
-            record = index.get(thread_id)
+        with self._user_lock(user_id):
+            record = self._read_meta(user_id, thread_id)
             if not record or record.get("user_id") != user_id:
                 return None
             record["permission_overlay"] = overlay
             record["updated_at"] = int(time.time())
-            index[thread_id] = record
-            self._write_index(index)
+            self._write_meta(user_id, thread_id, record)
         return overlay
+
+    # ------------------------------------------------------------------
+    # Migration from legacy threads.json
+    # ------------------------------------------------------------------
+
+    def _migrate_from_legacy(self, legacy_root: Path) -> None:
+        legacy_file = legacy_root / "threads.json"
+        migrated_flag = legacy_root / "threads.json.migrated"
+
+        if not legacy_file.exists() or migrated_flag.exists():
+            return
+
+        try:
+            data = json.loads(legacy_file.read_text(encoding="utf-8"))
+        except Exception:
+            return
+
+        for record in data.values():
+            thread_id = str(record.get("id", ""))
+            user_id = str(record.get("user_id", ""))
+            if not thread_id or not user_id:
+                continue
+            if self._meta_path(user_id, thread_id).exists():
+                continue
+            self._write_meta(user_id, thread_id, record)
+
+        migrated_flag.write_text("migrated", encoding="utf-8")

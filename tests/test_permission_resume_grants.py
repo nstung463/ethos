@@ -35,7 +35,7 @@ def test_resume_can_persist_exact_file_edit_permission_to_thread(tmp_path: Path)
             },
         )()
 
-        def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None):
+        def _fake_create_ethos_agent(*, model=None, backend=None, permission_context=None, root_dir=None, checkpointer=None, **kwargs):
             captured["permission_context"] = permission_context
             return _FakeAgent()
 

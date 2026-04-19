@@ -11,6 +11,7 @@ export default function ChatArea({
   onBypassForChat,
   onPromoteThreadPermissions,
   onOpenSecuritySettings,
+  onAnswerAskUser,
 }: {
   thread: ChatThread | null;
   onFollowUpClick: (prompt: string) => void;
@@ -20,6 +21,7 @@ export default function ChatArea({
   onBypassForChat: (messageId: string) => Promise<void>;
   onPromoteThreadPermissions: () => Promise<void>;
   onOpenSecuritySettings: () => void;
+  onAnswerAskUser?: (messageId: string, answers: Record<string, string>, notes: Record<string, string>) => void;
 }) {
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -44,6 +46,7 @@ export default function ChatArea({
             onBypassForChat={onBypassForChat}
             onPromoteThreadPermissions={onPromoteThreadPermissions}
             onOpenSecuritySettings={onOpenSecuritySettings}
+            onAnswerAskUser={onAnswerAskUser}
           />
         ))}
         <div ref={bottomRef} />

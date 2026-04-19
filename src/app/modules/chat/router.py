@@ -16,6 +16,7 @@ from langgraph.errors import GraphInterrupt
 
 from src.ai.agents.ethos import create_ethos_agent
 from src.ai.permissions import PermissionContext, PermissionMode, PermissionSubject, set_mode
+from src.ai.tools.filesystem import resolve_media_block_support
 from src.app.core.settings import get_settings
 from src.app.dependencies import (
     enforce_rate_limit,
@@ -384,7 +385,7 @@ def _stage_attached_files(
     ]
     instruction = (
         "The user's attached files have been staged into the sandbox.\n"
-        "Use sandbox filesystem tools such as read_file, edit_file, write_file, glob, and grep.\n"
+        "Use sandbox filesystem tools such as read_file, read_media_file, edit_file, write_file, glob, and grep.\n"
         "Do not say the file is missing until you have checked the staged sandbox paths below.\n"
         "Attached files in sandbox:\n"
         + "\n".join(attached_lines)
@@ -776,6 +777,7 @@ async def chat_completions(
     profile = _extract_profile(request)
     if profile:
         resolved_model = profile["model"]
+        resolved_provider = profile["provider"]
         model = build_chat_model(
             profile["provider"],
             profile["model"],
@@ -789,9 +791,18 @@ async def chat_completions(
         user_api_keys = _extract_user_api_keys(request)
         registry = {spec.id: spec for spec in get_model_registry()}
         spec = registry[resolved_model]
+        resolved_provider = spec.provider
         model = build_chat_model(spec.provider, spec.model, api_keys=user_api_keys)
 
-    agent = create_ethos_agent(model=model, backend=backend, permission_context=permission_context, checkpointer=checkpointer)
+    capability_model_name = profile["model"] if profile else spec.model
+    media_block_support = resolve_media_block_support(resolved_provider, capability_model_name)
+    agent = create_ethos_agent(
+        model=model,
+        backend=backend,
+        permission_context=permission_context,
+        checkpointer=checkpointer,
+        media_block_support=media_block_support,
+    )
 
     logger.info(
         "Chat completion request received (model=%s -> %s, session_id=%s, stream=%s, messages=%d, files=%d, client=%s)",

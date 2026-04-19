@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from src.ai.filesystem.backend import FilesystemBackendAdapter
 from src.ai.filesystem.edit import edit_file as edit_file_core
 from src.ai.filesystem.pathing import WorkspacePathResolver
-from src.ai.filesystem.read import read_file as read_file_core
+from src.ai.filesystem.read import read_file as read_file_core, read_media_file as read_media_file_core
 from src.ai.filesystem.search import (
     GlobSearchResult,
     GrepSearchResult,
@@ -60,6 +61,26 @@ class FilesystemService:
     ) -> str:
         try:
             return read_file_core(self.resolver, self.adapter, self.state, path, offset=offset, limit=limit, pages=pages)
+        except PermissionError as exc:
+            return str(exc)
+
+    def read_media_file(
+        self,
+        path: str,
+        *,
+        pages: str | None = None,
+        allow_image_blocks: bool = False,
+        allow_file_blocks: bool = False,
+    ) -> str | list[dict[str, Any]]:
+        try:
+            return read_media_file_core(
+                self.resolver,
+                self.adapter,
+                path,
+                pages=pages,
+                allow_image_blocks=allow_image_blocks,
+                allow_file_blocks=allow_file_blocks,
+            )
         except PermissionError as exc:
             return str(exc)
 

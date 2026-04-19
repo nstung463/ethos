@@ -1,4 +1,5 @@
 import type { Message, PermissionMode, ThreadPermissionsBundle } from "../types";
+import AskUserCard from "./AskUserCard";
 import FollowUps from "./FollowUps";
 import MessageContent from "./MessageContent";
 import PermissionPromptCard from "./PermissionPromptCard";
@@ -17,6 +18,7 @@ export default function MessageBubble({
   onBypassForChat,
   onPromoteThreadPermissions,
   onOpenSecuritySettings,
+  onAnswerAskUser,
 }: {
   message: Message;
   isLastMessage: boolean;
@@ -27,6 +29,7 @@ export default function MessageBubble({
   onBypassForChat: (messageId: string) => Promise<void>;
   onPromoteThreadPermissions: () => Promise<void>;
   onOpenSecuritySettings: () => void;
+  onAnswerAskUser?: (messageId: string, answers: Record<string, string>, notes: Record<string, string>) => void;
 }) {
   const isUser = message.role === "user";
   const isStreaming = message.status === "streaming";
@@ -100,7 +103,12 @@ export default function MessageBubble({
           </div>
         ) : null}
 
-        {permissionPrompt ? (
+        {message.askUserRequest ? (
+          <AskUserCard
+            request={message.askUserRequest}
+            onSubmit={(answers, notes) => onAnswerAskUser?.(message.id, answers, notes)}
+          />
+        ) : permissionPrompt ? (
           <PermissionPromptCard
             prompt={permissionPrompt}
             threadPermissions={threadPermissions}
